@@ -1,0 +1,18 @@
+﻿<!-- Subtabs for Reports -->
+<div class="d-flex align-items-center gap-2 mb-4" style="border-bottom: 2px solid #e2e8f0; padding-bottom: 0;">
+    <a href="{% url 'report_list' %}?tab=month"
+       class="px-3 py-2 text-sm font-medium text-decoration-none rounded-top"
+       style="{% if subtab == 'month' %}background:#0ea5e9; color:#fff; border-bottom:2px solid #0ea5e9; margin-bottom:-2px;{% else %}color:#64748b;{% endif %}">
+        Báo cáo theo tháng
+    </a>
+    <a href="{% url 'report_list' %}?tab=quarter"
+       class="px-3 py-2 text-sm font-medium text-decoration-none rounded-top"
+       style="{% if subtab == 'quarter' %}background:#0ea5e9; color:#fff; border-bottom:2px solid #0ea5e9; margin-bottom:-2px;{% else %}color:#64748b;{% endif %}">
+        Báo cáo theo quý
+    </a>
+    <a href="{% url 'report_list' %}?tab=year"
+       class="px-3 py-2 text-sm font-medium text-decoration-none rounded-top"
+       style="{% if subtab == 'year' %}background:#0ea5e9; color:#fff; border-bottom:2px solid #0ea5e9; margin-bottom:-2px;{% else %}color:#64748b;{% endif %}">
+        Báo cáo theo năm
+    </a>
+</div>

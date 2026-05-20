@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Danh sách Chuẩn đoán{% endblock %}
+{% block content %}
+
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+
+<h3 class="page-title">Danh sách Chuẩn đoán</h3>
+
+<div class="table-toolbar">
+    <div class="d-flex align-items-end gap-3 flex-wrap">
+        <div>
+            <label class="form-label" style="font-size:0.8rem; color:#64748b; margin-bottom:2px;">Khoảng thời gian khám</label>
+            <div class="input-group" style="max-width:280px;">
+                <input type="date" id="startDate" class="form-control" style="font-size:0.85rem; border-radius:10px 0 0 10px;">
+                <input type="date" id="endDate" class="form-control" style="font-size:0.85rem; border-radius:0 10px 10px 0;">
+            </div>
+        </div>
+        <div>
+            <label class="form-label" style="font-size:0.8rem; color:#64748b; margin-bottom:2px;">Mã căn cước</label>
+            <input type="text" id="identifierSearch" class="form-control" placeholder="Nhập mã căn cước" style="font-size:0.85rem; border-radius:10px; max-width:200px;">
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn-add" style="padding:7px 16px;" onclick="filterDiagnosis()">Tìm kiếm</button>
+            <button class="btn-action btn-action-delete" style="padding:7px 16px;" onclick="resetFilter()">Reset</button>
+        </div>
+    </div>
+    <button class="btn-add" onclick="openCreateForm()">+ Thêm Chuẩn đoán</button>
+</div>
+
+<div class="table-card">
+<table id="diagnosisTable" class="table">
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>Thời gian khám</th>
+        <th>Mã BN</th>
+        <th>Loại dịch vụ</th>
+        <th>Đơn vị y tế</th>
+        <th>Khoa</th>
+        <th>Nơi khám</th>
+        <th>Họ tên</th>
+        <th>Số định danh</th>
+        <th>Bác sĩ</th>
+        <th>Thao tác</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for d in diagnosis_records %}
+        <tr data-id="{{ d.id }}">
+            <td><span style="font-weight:500;">{{ d.id }}</span></td>
+            <td>{{ d.examination_time }}</td>
+            <td>{{ d.patient.id }}</td>
+            <td>{{ d.service_type }}</td>
+            <td>{{ d.patient.created_by_facility.name|default:"" }}</td>
+            <td>{{ d.department }}</td>
+            <td>{{ d.examination_place }}</td>
+            <td>{{ d.patient.name }}</td>
+            <td>{{ d.patient.identifier }}</td>
+            <td>{{ d.doctor.name|default:"" }}</td>
+            <td style="white-space:nowrap;">
+                <button class="btn-action btn-action-edit" onclick="openEditForm({{ d.id }})">Sửa</button>
+                <button class="btn-action btn-action-delete" onclick="deleteDiagnosis({{ d.id }})">Xóa</button>
+                <button class="btn-action btn-action-info" onclick="generatePublicLink({{ d.id }})">Link</button>
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="diagnosisModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <form id="diagnosisForm" enctype="multipart/form-data">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Thông tin Chuẩn đoán</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="diagnosisId">
+                    <input type="hidden" id="filesToDelete" name="files_to_delete">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Thời gian khám</label>
+                            <input type="datetime-local" class="form-control" id="examination_time" name="examination_time" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Mã bệnh nhân</label>
+                            <select class="form-select" id="patient_id" name="patient_id" required>
+                                <option value="">-- Chọn bệnh nhân --</option>
+                                {% for patient in patients %}
+                                    <option value="{{ patient.id }}">{{ patient.id }} - {{ patient.name }} - {{ patient.created_by_facility.name|default:"" }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Loại dịch vụ</label>
+                            <input type="text" class="form-control" id="service_type" name="service_type" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Khoa</label>
+                            <input type="text" class="form-control" id="department" name="department" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Nơi khám</label>
+                            <input type="text" class="form-control" id="examination_place" name="examination_place" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Bác sĩ chuẩn đoán</label>
+                            <select class="form-select" id="doctor_id" name="doctor_id">
+                                <option value="">-- Chọn bác sĩ --</option>
+                                {% for doctor in doctors %}
+                                    <option value="{{ doctor.id }}">{{ doctor.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Kết quả chuẩn đoán</label>
+                            <textarea class="form-control" id="diagnosis_result" name="diagnosis_result" rows="3"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Tài liệu (có thể chọn nhiều)</label>
+                            <input type="file" class="form-control" id="documents" name="documents" multiple>
+                        </div>
+                        <div class="col-12 mt-3">
+                            <label class="form-label">Tài liệu đã upload:</label>
+                            <ul id="diagnosis-documents-list" style="max-height:150px; overflow-y:auto; border: 1px solid #e2e8f0; padding: 10px; border-radius: 10px;"></ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn-add" style="margin:0;">Lưu</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="border-radius:10px; font-size:0.825rem;">Hủy</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+    $('#diagnosisTable').DataTable({
+        language: {
+            search: "Tìm kiếm:",
+            lengthMenu: "Chi tiết _MENU_",
+            info: "Hiển thị từ _START_ tới _END_ trong số _TOTAL_ bản ghi",
+            paginate: { previous: "«", next: "»" },
+            zeroRecords: "Không tìm thấy dữ liệu",
+        }
+    });
+
+    function openCreateForm() {
+        $('#patient_id').prop('disabled', false);
+        $('#examination_time').prop('disabled', false);
+        $('#diagnosisForm')[0].reset();
+        $('#diagnosisId').val('');
+        $('#filesToDelete').val('[]');
+        $('#diagnosis-documents-list').empty();
+        $('#diagnosisModal').modal('show');
+    }
+
+    function openEditForm(id) {
+        $.get(`/api/diagnosis/${id}/`, function (data) {
+            $('#diagnosis-documents-list').empty();
+            $('#diagnosisId').val(data.id);
+            $('#patient_id').val(data.patient_id).prop('disabled', true);
+            $('#service_type').val(data.service_type);
+            $('#department').val(data.department);
+            $('#examination_place').val(data.examination_place);
+            $('#examination_time').val(data.examination_time.slice(0,16)).prop('disabled', true);
+            $('#diagnosis_result').val(data.diagnosis_result);
+            $('#doctor_id').val(data.doctor_id);
+            $('#filesToDelete').val('[]');
+
+            if (data.documents && data.documents.length > 0) {
+                data.documents.forEach(doc => {
+                    const fileItem = $(`
+                        <li data-id="${doc.id}">
+                            <a href="${doc.file_url}" target="_blank">${doc.file_name}</a>
+                            <button type="button" class="btn-action btn-action-delete btn-remove-file ms-2">X</button>
+                        </li>
+                    `);
+                    $('#diagnosis-documents-list').append(fileItem);
+                });
+            } else {
+                $('#diagnosis-documents-list').html('<em style="color:#94a3b8;">Không có tài liệu</em>');
+            }
+            $('#diagnosisModal').modal('show');
+        });
+    }
+
+    $(document).on('click', '.btn-remove-file', function () {
+        const li = $(this).closest('li');
+        const fileId = li.data('id');
+        const currentDeleteList = JSON.parse($('#filesToDelete').val());
+        currentDeleteList.push(fileId);
+        $('#filesToDelete').val(JSON.stringify(currentDeleteList));
+        li.remove();
+    });
+
+    $('#diagnosisForm').submit(function (e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        const id = $('#diagnosisId').val();
+        const url = id ? `/api/diagnosis/update/${id}/` : `/api/diagnosis/create/`;
+        $.ajax({
+            url: url, type: 'POST', data: formData, processData: false, contentType: false,
+            success: function () { location.reload(); },
+            error: function (xhr) { alert('Lỗi: ' + xhr.responseJSON.error); }
+        });
+    });
+
+    function deleteDiagnosis(id) {
+        confirmDelete('Bạn có chắc muốn xóa chuẩn đoán này?', function () {
+            $.post(`/api/diagnosis/delete/${id}/`, function () { location.reload(); });
+        });
+    }
+
+    function filterDiagnosis() {
+        const startDate = $('#startDate').val();
+        const endDate = $('#endDate').val();
+        const identifier = $('#identifierSearch').val();
+
+        $.get('/api/diagnosis/list/', {
+            start_date: startDate, end_date: endDate, identifier_number: identifier
+        }, function(response) {
+            const tbody = $('#diagnosisTable tbody');
+            tbody.empty();
+
+            if (response.data.length === 0) {
+                tbody.append('<tr><td colspan="11" style="text-align:center; color:#94a3b8;">Không có dữ liệu</td></tr>');
+                return;
+            }
+
+            response.data.forEach(d => {
+                tbody.append(`
+                    <tr data-id="${d.id}">
+                        <td><span style="font-weight:500;">${d.id}</span></td>
+                        <td>${d.examination_time}</td>
+                        <td>${d.patient_code}</td>
+                        <td>${d.service_type}</td>
+                        <td>${d.facility_code}</td>
+                        <td>${d.department}</td>
+                        <td>${d.examination_place}</td>
+                        <td>${d.patient_name}</td>
+                        <td>${d.identifier_number}</td>
+                        <td>${d.doctor_name}</td>
+                        <td style="white-space:nowrap;">
+                            <button class="btn-action btn-action-edit" onclick="openEditForm(${d.id})">Sửa</button>
+                            <button class="btn-action btn-action-delete" onclick="deleteDiagnosis(${d.id})">Xóa</button>
+                            <button class="btn-action btn-action-info" onclick="generatePublicLink(${d.id})">Link</button>
+                        </td>
+                    </tr>
+                `);
+            });
+        });
+    }
+
+    function generatePublicLink(id) {
+        $.post(`/api/diagnosis/generate_public_link/${id}/`, function (data) {
+            if (data.public_url) {
+                prompt('Link tra cứu (chia sẻ cho người dùng):', data.public_url);
+            } else {
+                alert('Không thể tạo link');
+            }
+        }).fail(function(){ alert('Lỗi khi tạo link'); });
+    }
+
+    function resetFilter() {
+        $('#startDate').val('');
+        $('#endDate').val('');
+        $('#identifierSearch').val('');
+        location.reload();
+    }
+
+    $('#patient_id').on('change', function () {
+        const patientId = $(this).val();
+        if (patientId) {
+            $.get(`/api/get_doctors_by_patient/${patientId}/`, function (data) {
+                const doctorSelect = $('#doctor_id');
+                doctorSelect.empty().append('<option value="">-- Chọn bác sĩ --</option>');
+                data.doctors.forEach(doc => {
+                    doctorSelect.append(`<option value="${doc.id}">${doc.name}</option>`);
+                });
+            });
+        } else {
+            $('#doctor_id').empty().append('<option value="">-- Chọn bác sĩ --</option>');
+        }
+    });
+</script>
+
+{% endblock %}

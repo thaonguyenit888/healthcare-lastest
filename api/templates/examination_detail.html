@@ -1,0 +1,358 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Chi tiết phiếu khám{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center gap-3 mb-4">
+    <a href="{% url 'examination_list' %}" style="text-decoration:none; color:#64748b; font-size:0.85rem; display:flex; align-items:center; gap:4px;">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+        Quay lại
+    </a>
+    <h3 class="page-title" style="margin:0;">Kết quả khám <small>{{ examination.patient.name }} — {{ examination.examination_date|date:"d/m/Y H:i" }}</small></h3>
+</div>
+
+<!-- Exam info summary -->
+<div style="background:#fff; border-radius:16px; padding:20px 24px; border:1px solid #f1f5f9; box-shadow:0 1px 3px rgba(0,0,0,0.04); margin-bottom:20px;">
+    <div class="row" style="font-size:0.85rem; color:#475569;">
+        <div class="col-md-3"><strong>Bệnh nhân:</strong> {{ examination.patient.name }}</div>
+        <div class="col-md-3"><strong>Cơ sở:</strong> {{ examination.facility.name }}</div>
+        <div class="col-md-3"><strong>BS phụ trách:</strong> {{ examination.doctor.name|default:"—" }}</div>
+        <div class="col-md-3"><strong>Trạng thái:</strong>
+            {% if examination.status == 'awaiting_payment' %}
+                <span class="badge-role" style="background:#f3e8ff; color:#9333ea;">Chờ thanh toán</span>
+            {% elif examination.status == 'pending' %}
+                <span class="badge-role" style="background:#fef3c7; color:#d97706;">Chờ khám</span>
+            {% elif examination.status == 'in_progress' %}
+                <span class="badge-role" style="background:#dbeafe; color:#2563eb;">Đang khám</span>
+            {% elif examination.status == 'completed' %}
+                <span class="badge-role" style="background:#dcfce7; color:#16a34a;">Hoàn thành</span>
+            {% elif examination.status == 'cancelled' %}
+                <span class="badge-role" style="background:#fee2e2; color:#dc2626;">Đã hủy</span>
+            {% endif %}
+            <button class="btn-action btn-action-edit" style="margin-left:4px; padding:2px 6px; font-size:0.7rem; line-height:1;" data-bs-toggle="modal" data-bs-target="#statusModal"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+        </div>
+    </div>
+</div>
+
+<!-- Overall result -->
+<div style="background:#fff; border-radius:16px; padding:20px 24px; border:1px solid #f1f5f9; box-shadow:0 1px 3px rgba(0,0,0,0.04); margin-bottom:20px;">
+    <div class="d-flex align-items-center justify-content-between mb-2">
+        <h6 style="font-weight:700; color:#1e293b; margin:0; font-size:0.9rem;">Kết quả khám tổng</h6>
+        <button class="btn-action btn-action-edit" onclick="toggleOverallEdit()">Sửa</button>
+    </div>
+    <div id="overallDisplay">
+        <p style="font-size:0.85rem; color:#475569; margin:0;">{{ examination.overall_result|default:"Chưa có kết quả tổng" }}</p>
+        {% if overall_docs %}
+        <div class="mt-2 d-flex flex-wrap gap-2">
+            {% for doc in overall_docs %}
+                {% if doc.file.url|lower|slice:"-4:" == ".jpg" or doc.file.url|lower|slice:"-4:" == ".png" or doc.file.url|lower|slice:"-5:" == ".jpeg" %}
+                    <a href="{{ doc.file.url }}" target="_blank">
+                        <img src="{{ doc.file.url }}" style="width:80px; height:80px; object-fit:cover; border-radius:8px; border:1px solid #e2e8f0;">
+                    </a>
+                {% else %}
+                    <a href="{{ doc.file.url }}" target="_blank" class="btn-action btn-action-info" style="padding:6px 12px; font-size:0.8rem;">{{ doc.original_filename|default:"File" }}</a>
+                {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    <div id="overallEditForm" style="display:none;">
+        <textarea id="overallResultInput" class="form-control mb-2" rows="3" style="font-size:0.85rem; border-radius:10px;">{{ examination.overall_result|default:"" }}</textarea>
+        <div class="d-flex gap-2">
+            <label style="font-size:0.8rem; color:#64748b;">File đính kèm tổng:</label>
+            <input type="file" id="overallFiles" multiple style="font-size:0.8rem;">
+        </div>
+        {% if overall_docs %}
+        <div class="mt-2">
+            {% for doc in overall_docs %}
+            <div class="d-flex align-items-center gap-2 mb-1" id="overallDoc_{{ doc.id }}">
+                <a href="{{ doc.file.url }}" target="_blank" style="font-size:0.8rem; color:#0ea5e9;">{{ doc.original_filename|default:doc.file.name }}</a>
+                <button type="button" class="btn-action btn-action-delete" style="padding:2px 6px; font-size:0.65rem;" onclick="deleteOverallDoc({{ doc.id }})">Xóa</button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        <div class="mt-2">
+            <button class="btn-add" style="padding:5px 16px; font-size:0.8rem;" onclick="saveOverallResult()">Lưu</button>
+            <button class="btn btn-secondary" style="padding:5px 16px; font-size:0.8rem; border-radius:10px;" onclick="toggleOverallEdit()">Hủy</button>
+        </div>
+    </div>
+</div>
+
+<!-- Consultation results -->
+{% if consults %}
+<div style="background:#fff; border-radius:16px; padding:20px 24px; border:1px solid #f1f5f9; box-shadow:0 1px 3px rgba(0,0,0,0.04); margin-bottom:20px;">
+    <div class="d-flex align-items-center justify-content-between mb-2">
+        <h6 style="font-weight:700; color:#1e293b; margin:0; font-size:0.9rem;">Kết quả hội chẩn</h6>
+    </div>
+    {% for c in consults %}
+        <div style="border-top:1px dashed #e2e8f0; padding-top:10px; margin-top:8px;">
+            <div style="font-size:0.8rem; color:#64748b; margin-bottom:4px;">
+                Bác sĩ hội chẩn: <strong style="color:#334155;">{{ c.doctor.name }}</strong>
+                <span style="font-size:0.75rem; color:#94a3b8;">(cập nhật: {{ c.updated_at|date:"d/m/Y H:i" }})</span>
+            </div>
+            {% if request.user.role_code == 'admin' or request.user.id == c.doctor_id %}
+                <textarea class="form-control" id="consultResult_{{ c.id }}" rows="2" style="font-size:0.8rem; border-radius:8px;">{{ c.result|default:"" }}</textarea>
+                <button class="btn-add mt-1" style="padding:4px 14px; font-size:0.75rem;" onclick="saveConsult({{ c.id }})">Lưu kết quả hội chẩn</button>
+            {% else %}
+                <div style="font-size:0.85rem; color:#475569;">
+                    {{ c.result|default:"Chưa có kết quả hội chẩn"|linebreaksbr }}
+                </div>
+            {% endif %}
+        </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Service list -->
+<h6 style="font-weight:700; color:#1e293b; font-size:0.95rem; margin-bottom:12px;">Danh sách dịch vụ khám ({{ services|length }})</h6>
+
+{% for svc in services %}
+<div class="table-card" style="margin-bottom:16px; padding:20px 24px;" id="svcCard_{{ svc.id }}">
+    <div class="d-flex align-items-start justify-content-between mb-3">
+        <div>
+            <h6 style="font-weight:700; color:#1e293b; margin:0 0 4px; font-size:0.95rem;">
+                {{ svc.service.name }}
+                <span class="badge-role badge-role-doctor" style="margin-left:6px;">{{ svc.service.get_service_type_display }}</span>
+            </h6>
+            <div style="font-size:0.8rem; color:#94a3b8;">
+                Người phụ trách: <strong style="color:#475569;">{{ svc.assigned_doctor.name|default:"Chưa chỉ định" }}</strong>
+                {% if svc.service_time %} · {{ svc.service_time|date:"d/m/Y H:i" }}{% endif %}
+                {% if svc.room %} · Phòng: <strong style="color:#475569;">{{ svc.room }}</strong>{% endif %}
+            </div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            {% if svc.status == 'pending' %}
+                <span class="badge-role" style="background:#fef3c7; color:#d97706;">Chờ</span>
+            {% elif svc.status == 'in_progress' %}
+                <span class="badge-role" style="background:#dbeafe; color:#2563eb;">Đang thực hiện</span>
+            {% elif svc.status == 'completed' %}
+                <span class="badge-role" style="background:#dcfce7; color:#16a34a;">Hoàn thành</span>
+            {% endif %}
+            <button class="btn-action btn-action-edit" onclick="toggleServiceEdit({{ svc.id }})">Cập nhật</button>
+        </div>
+    </div>
+
+    <!-- Display -->
+    <div id="svcDisplay_{{ svc.id }}">
+        <div style="font-size:0.85rem; color:#475569; margin-bottom:8px;">
+            <strong>Kết quả:</strong> {{ svc.result|default:"Chưa có kết quả"|linebreaksbr }}
+        </div>
+        {% if svc.notes %}
+        <div style="font-size:0.8rem; color:#94a3b8;"><strong>Ghi chú:</strong> {{ svc.notes }}</div>
+        {% endif %}
+        {% if svc.documents.all %}
+        <div class="mt-2 d-flex flex-wrap gap-2">
+            {% for doc in svc.documents.all %}
+                {% if doc.file.url|lower|slice:"-4:" == ".jpg" or doc.file.url|lower|slice:"-4:" == ".png" or doc.file.url|lower|slice:"-5:" == ".jpeg" %}
+                    <a href="{{ doc.file.url }}" target="_blank">
+                        <img src="{{ doc.file.url }}" style="width:80px; height:80px; object-fit:cover; border-radius:8px; border:1px solid #e2e8f0;">
+                    </a>
+                {% else %}
+                    <a href="{{ doc.file.url }}" target="_blank" class="btn-action btn-action-info" style="padding:6px 12px;">{{ doc.original_filename|default:"File" }}</a>
+                {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Edit form (hidden) -->
+    <div id="svcEdit_{{ svc.id }}" style="display:none;">
+        <div class="row mb-2 g-2">
+            <div class="col-md-3">
+                <label style="font-size:0.75rem; color:#64748b;">Người phụ trách</label>
+                <select class="form-select" id="svcDoctor_{{ svc.id }}" style="font-size:0.8rem; border-radius:8px; padding:6px 10px;">
+                    <option value="">-- Chọn người phụ trách --</option>
+                    {% for d in doctors %}
+                    <option value="{{ d.id }}" {% if svc.assigned_doctor and svc.assigned_doctor.id == d.id %}selected{% endif %}>{{ d.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label style="font-size:0.75rem; color:#64748b;">Giờ thực hiện</label>
+                <input type="datetime-local" class="form-control" id="svcTime_{{ svc.id }}" value="{% if svc.service_time %}{{ svc.service_time|date:'Y-m-d\TH:i' }}{% endif %}" style="font-size:0.8rem; border-radius:8px; padding:6px 10px;">
+            </div>
+            <div class="col-md-3">
+                <label style="font-size:0.75rem; color:#64748b;">Phòng</label>
+                <input type="text" class="form-control" id="svcRoom_{{ svc.id }}" value="{{ svc.room|default:'' }}" placeholder="VD: P301" style="font-size:0.8rem; border-radius:8px; padding:6px 10px;">
+            </div>
+            <div class="col-md-3">
+                <label style="font-size:0.75rem; color:#64748b;">Trạng thái</label>
+                <select class="form-select" id="svcStatus_{{ svc.id }}" style="font-size:0.8rem; border-radius:8px; padding:6px 10px;">
+                    <option value="pending" {% if svc.status == 'pending' %}selected{% endif %}>Chờ thực hiện</option>
+                    <option value="in_progress" {% if svc.status == 'in_progress' %}selected{% endif %}>Đang thực hiện</option>
+                    <option value="completed" {% if svc.status == 'completed' %}selected{% endif %}>Hoàn thành</option>
+                </select>
+            </div>
+        </div>
+        <div class="mb-2">
+            <label style="font-size:0.75rem; color:#64748b;">Kết quả</label>
+            <textarea class="form-control" id="svcResult_{{ svc.id }}" rows="2" style="font-size:0.8rem; border-radius:8px;">{{ svc.result|default:"" }}</textarea>
+        </div>
+        <div class="mb-2">
+            <label style="font-size:0.75rem; color:#64748b;">Ghi chú</label>
+            <textarea class="form-control" id="svcNotes_{{ svc.id }}" rows="1" style="font-size:0.8rem; border-radius:8px;">{{ svc.notes|default:"" }}</textarea>
+        </div>
+        <div class="mb-2">
+            <label style="font-size:0.75rem; color:#64748b;">Đính kèm ảnh/video/file</label>
+            <input type="file" id="svcFiles_{{ svc.id }}" multiple style="font-size:0.8rem;">
+        </div>
+        {% if svc.documents.all %}
+        <div class="mb-2 d-flex flex-wrap gap-2">
+            {% for doc in svc.documents.all %}
+            <div class="d-flex align-items-center gap-1" id="svcDoc_{{ doc.id }}">
+                <a href="{{ doc.file.url }}" target="_blank" style="font-size:0.75rem; color:#0ea5e9;">{{ doc.original_filename|default:"File" }}</a>
+                <button type="button" class="btn-action btn-action-delete" style="padding:1px 6px; font-size:0.65rem;" onclick="document.getElementById('svcDoc_{{ doc.id }}').remove(); svcDeleteDocIds_{{ svc.id }}.push({{ doc.id }})">×</button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        <div class="d-flex gap-2">
+            <button class="btn-add" style="padding:5px 16px; font-size:0.8rem;" onclick="saveService({{ svc.id }})">Lưu</button>
+            <button class="btn btn-secondary" style="padding:5px 16px; font-size:0.8rem; border-radius:10px;" onclick="toggleServiceEdit({{ svc.id }})">Hủy</button>
+        </div>
+    </div>
+</div>
+{% empty %}
+<div class="table-card" style="padding:40px; text-align:center; color:#94a3b8;">
+    <p style="font-size:0.9rem; margin:0;">Phiếu khám chưa có dịch vụ nào.</p>
+</div>
+{% endfor %}
+
+<!-- Status Modal -->
+<div class="modal fade" id="statusModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" style="font-size:0.95rem;">Cập nhật trạng thái</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <select id="newExamStatus" class="form-select" style="font-size:0.85rem; border-radius:10px;">
+                    <option value="awaiting_payment" {% if examination.status == 'awaiting_payment' %}selected{% endif %}>Chờ thanh toán</option>
+                    <option value="pending" {% if examination.status == 'pending' %}selected{% endif %}>Chờ khám</option>
+                    <option value="in_progress" {% if examination.status == 'in_progress' %}selected{% endif %}>Đang khám</option>
+                    <option value="completed" {% if examination.status == 'completed' %}selected{% endif %}>Hoàn thành</option>
+                    <option value="cancelled" {% if examination.status == 'cancelled' %}selected{% endif %}>Đã hủy</option>
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="border-radius:10px; font-size:0.825rem;">Hủy</button>
+                <button type="button" class="btn-add" style="padding:6px 18px; font-size:0.825rem;" onclick="saveExamStatus()">Lưu</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script>
+const examId = {{ examination.id }};
+
+function saveExamStatus() {
+    const status = document.getElementById('newExamStatus').value;
+    $.ajax({
+        url: `/api/examinations/${examId}/status/`,
+        type: 'POST',
+        data: JSON.stringify({ status: status }),
+        contentType: 'application/json',
+        success: function() { location.reload(); },
+        error: function(xhr) { alert(xhr.responseJSON?.error || 'Có lỗi xảy ra'); }
+    });
+}
+
+// Track delete doc IDs per service
+{% for svc in services %}
+var svcDeleteDocIds_{{ svc.id }} = [];
+{% endfor %}
+
+function toggleOverallEdit() {
+    const display = document.getElementById('overallDisplay');
+    const form = document.getElementById('overallEditForm');
+    if (form.style.display === 'none') {
+        form.style.display = 'block';
+        display.style.display = 'none';
+    } else {
+        form.style.display = 'none';
+        display.style.display = 'block';
+    }
+}
+
+function saveOverallResult() {
+    const formData = new FormData();
+    formData.append('overall_result', document.getElementById('overallResultInput').value);
+    const files = document.getElementById('overallFiles').files;
+    for (let i = 0; i < files.length; i++) formData.append('documents', files[i]);
+
+    $.ajax({
+        url: `/api/examinations/${examId}/overall/`,
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function() { location.reload(); },
+        error: function(xhr) { alert(xhr.responseJSON?.error || 'Có lỗi xảy ra'); }
+    });
+}
+
+function saveConsult(consultId) {
+    const textarea = document.getElementById('consultResult_' + consultId);
+    if (!textarea) return;
+    const formData = new FormData();
+    formData.append('result', textarea.value);
+    $.ajax({
+        url: `/api/examinations/consults/update/${consultId}/`,
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function() { alert('Đã lưu kết quả hội chẩn'); },
+        error: function(xhr) { alert(xhr.responseJSON?.error || 'Có lỗi xảy ra'); }
+    });
+}
+
+function deleteOverallDoc(docId) {
+    $.post(`/api/examinations/doc/delete/${docId}/`, function() {
+        document.getElementById('overallDoc_' + docId).remove();
+    });
+}
+
+function toggleServiceEdit(svcId) {
+    const display = document.getElementById('svcDisplay_' + svcId);
+    const form = document.getElementById('svcEdit_' + svcId);
+    if (form.style.display === 'none') {
+        form.style.display = 'block';
+        display.style.display = 'none';
+    } else {
+        form.style.display = 'none';
+        display.style.display = 'block';
+    }
+}
+
+function saveService(svcId) {
+    const formData = new FormData();
+    formData.append('assigned_doctor_id', document.getElementById('svcDoctor_' + svcId).value);
+    formData.append('service_time', document.getElementById('svcTime_' + svcId).value);
+    formData.append('room', document.getElementById('svcRoom_' + svcId).value);
+    formData.append('status', document.getElementById('svcStatus_' + svcId).value);
+    formData.append('result', document.getElementById('svcResult_' + svcId).value);
+    formData.append('notes', document.getElementById('svcNotes_' + svcId).value);
+
+    const files = document.getElementById('svcFiles_' + svcId).files;
+    for (let i = 0; i < files.length; i++) formData.append('documents', files[i]);
+
+    const deleteIds = window['svcDeleteDocIds_' + svcId] || [];
+    if (deleteIds.length > 0) formData.append('delete_documents', deleteIds.join(','));
+
+    $.ajax({
+        url: `/api/examination-services/update/${svcId}/`,
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function() { location.reload(); },
+        error: function(xhr) { alert(xhr.responseJSON?.error || 'Có lỗi xảy ra'); }
+    });
+}
+</script>
+
+{% endblock %}

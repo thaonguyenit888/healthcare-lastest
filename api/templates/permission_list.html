@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Quản lý Phân quyền{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+
+<h3 class="page-title">Quản lý Người dùng <small>Phân quyền</small></h3>
+
+{% include "user_subtabs.html" %}
+
+<div class="table-toolbar">
+    <div></div>
+    <button class="btn-add" onclick="openCreateModal()">+ Thêm quyền</button>
+</div>
+
+<div class="table-card">
+<table id="permTable" class="table">
+    <thead>
+        <tr>
+            <th>Mã quyền</th>
+            <th>Tên</th>
+            <th>Module</th>
+            <th>Mô tả</th>
+            <th>Hành động</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for p in permissions %}
+        <tr id="row-{{ p.id }}">
+            <td><span style="font-weight:500;">{{ p.code }}</span></td>
+            <td>{{ p.name }}</td>
+            <td><span class="badge-role badge-role-default">{{ p.module }}</span></td>
+            <td>{{ p.description|default:"" }}</td>
+            <td>
+                <button class="btn-action btn-action-edit" onclick="openEditModal({{ p.id }}, '{{ p.code }}', '{{ p.name }}', '{{ p.module }}', `{{ p.description|default:''|escapejs }}`)">Sửa</button>
+                <button class="btn-action btn-action-delete" onclick="deletePerm({{ p.id }})">Xóa</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="permModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="permForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="permModalLabel">Thêm quyền</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="perm-id">
+          <div class="mb-3">
+            <label for="perm-code" class="form-label">Mã quyền</label>
+            <input type="text" class="form-control" id="perm-code" required placeholder="vd: user.view">
+          </div>
+          <div class="mb-3">
+            <label for="perm-name" class="form-label">Tên quyền</label>
+            <input type="text" class="form-control" id="perm-name" required placeholder="vd: Xem người dùng">
+          </div>
+          <div class="mb-3">
+            <label for="perm-module" class="form-label">Module</label>
+            <input type="text" class="form-control" id="perm-module" required placeholder="vd: user, patient, facility" list="module-list">
+            <datalist id="module-list">
+              {% for m in modules %}
+              <option value="{{ m }}">
+              {% endfor %}
+            </datalist>
+          </div>
+          <div class="mb-3">
+            <label for="perm-description" class="form-label">Mô tả</label>
+            <textarea class="form-control" id="perm-description" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn-add" style="margin:0;">Lưu</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="border-radius:10px; font-size:0.825rem;">Hủy</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+$(document).ready(function () {
+    $('#permTable').DataTable({
+        language: {
+            search: "Tìm kiếm:",
+            lengthMenu: "Chi tiết _MENU_",
+            info: "Hiển thị từ _START_ tới _END_ trong số _TOTAL_ bản ghi",
+            paginate: { previous: "«", next: "»" },
+            zeroRecords: "Không tìm thấy dữ liệu",
+        }
+    });
+
+    $('#permForm').on('submit', function (e) {
+        e.preventDefault();
+        const id = $('#perm-id').val();
+        const data = {
+            code: $('#perm-code').val(),
+            name: $('#perm-name').val(),
+            module: $('#perm-module').val(),
+            description: $('#perm-description').val()
+        };
+        const url = id ? `/api/permissions/update/${id}/` : '/api/permissions/create/';
+        $.ajax({
+            url: url, type: 'POST', data: JSON.stringify(data), contentType: 'application/json',
+            success: function () { location.reload(); },
+            error: function (xhr) { alert('Lỗi: ' + (xhr.responseJSON?.error || 'Không xác định')); }
+        });
+    });
+});
+
+function openCreateModal() {
+    $('#permForm')[0].reset();
+    $('#perm-id').val('');
+    $('#permModalLabel').text('Thêm quyền');
+    new bootstrap.Modal(document.getElementById('permModal')).show();
+}
+
+function openEditModal(id, code, name, module, description) {
+    $('#perm-id').val(id);
+    $('#perm-code').val(code);
+    $('#perm-name').val(name);
+    $('#perm-module').val(module);
+    $('#perm-description').val(description);
+    $('#permModalLabel').text('Cập nhật quyền');
+    new bootstrap.Modal(document.getElementById('permModal')).show();
+}
+
+function deletePerm(id) {
+    confirmDelete('Bạn có chắc chắn muốn xóa quyền này?', function () {
+        $.ajax({
+            url: `/api/permissions/delete/${id}/`, type: 'POST',
+            success: function () { location.reload(); },
+            error: function (xhr) { alert('Lỗi: ' + (xhr.responseJSON?.error || 'Không xác định')); }
+        });
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,453 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Dashboard{% endblock %} - ThaoHealthCare</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0ea5e9',
+                        'primary-dark': '#0284c7',
+                    }
+                }
+            },
+            corePlugins: {
+                preflight: false,
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        /* Tailwind sidebar overrides */
+        .sidebar { font-family: system-ui, -apple-system, sans-serif; }
+        .sidebar * { box-sizing: border-box; }
+        .sidebar a, .sidebar button { text-decoration: none; }
+        .nav-item-link {
+            display: flex; align-items: center; gap: 0.75rem;
+            padding: 0.6rem 1rem; border-radius: 0.75rem;
+            color: #475569; font-size: 0.875rem; font-weight: 500;
+            transition: all 0.15s;
+        }
+        .nav-item-link:hover { background: #f0f9ff; color: #0ea5e9; }
+        .nav-item-link.active { background: linear-gradient(135deg, #0ea5e9, #22d3ee); color: #fff; box-shadow: 0 4px 12px rgba(14,165,233,0.25); }
+        .nav-item-link.active svg { color: #fff; }
+        .top-navbar {
+            background: rgba(255,255,255,0.85); backdrop-filter: blur(12px);
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        /* ===== Modern DataTable Overrides ===== */
+        .dataTables_wrapper { font-family: system-ui, -apple-system, sans-serif; }
+
+        /* Table container card */
+        .table-card {
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
+            border: 1px solid #f1f5f9;
+            overflow: hidden;
+            padding: 8px;
+        }
+        .table-card .table { margin-bottom: 0; }
+
+        /* Table header */
+        .table-card thead th,
+        table.dataTable thead th {
+            background: #f8fafc !important;
+            border-bottom: 2px solid #e2e8f0 !important;
+            color: #475569 !important;
+            font-weight: 600 !important;
+            font-size: 0.8rem !important;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            padding: 12px 16px !important;
+            white-space: nowrap;
+        }
+
+        /* Table body cells */
+        .table-card tbody td,
+        table.dataTable tbody td {
+            padding: 10px 16px !important;
+            font-size: 0.875rem;
+            color: #334155;
+            border-bottom: 1px solid #f1f5f9 !important;
+            vertical-align: middle;
+        }
+
+        /* Row hover */
+        .table-card tbody tr:hover,
+        table.dataTable tbody tr:hover {
+            background: #f0f9ff !important;
+        }
+
+        /* Remove Bootstrap striped */
+        .table-striped > tbody > tr:nth-of-type(odd) > * {
+            --bs-table-bg-type: transparent !important;
+        }
+
+        /* Sorting icons */
+        table.dataTable thead .sorting::after,
+        table.dataTable thead .sorting_asc::after,
+        table.dataTable thead .sorting_desc::after {
+            opacity: 0.4 !important;
+        }
+        table.dataTable thead .sorting_asc::after,
+        table.dataTable thead .sorting_desc::after {
+            opacity: 0.8 !important;
+            color: #0ea5e9 !important;
+        }
+
+        /* DataTable top/bottom bar */
+        .dataTables_wrapper .dataTables_length,
+        .dataTables_wrapper .dataTables_filter,
+        .dataTables_wrapper .dataTables_info,
+        .dataTables_wrapper .dataTables_paginate {
+            padding: 12px 16px !important;
+            font-size: 0.825rem;
+            color: #64748b;
+        }
+        .dataTables_wrapper .dataTables_filter {
+            padding-right: 0 !important;
+        }
+        .dataTables_wrapper .dataTables_length {
+            padding-left: 0 !important;
+        }
+
+        /* Search input */
+        .dataTables_wrapper .dataTables_filter input {
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 10px !important;
+            padding: 10px 18px !important;
+            font-size: 0.85rem;
+            outline: none !important;
+            box-shadow: none !important;
+            transition: border-color 0.15s;
+            margin-left: 8px;
+            min-width: 200px;
+        }
+        .dataTables_wrapper .dataTables_filter input:focus {
+            border-color: #0ea5e9 !important;
+            box-shadow: 0 0 0 3px rgba(14,165,233,0.1) !important;
+        }
+
+        /* Length select */
+        .dataTables_wrapper .dataTables_length select {
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 8px !important;
+            padding: 8px 32px 8px 12px !important;
+            font-size: 0.85rem;
+            outline: none !important;
+            box-shadow: none !important;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 14px;
+        }
+
+        /* Pagination */
+        .dataTables_wrapper .dataTables_paginate .paginate_button {
+            border: none !important;
+            border-radius: 8px !important;
+            padding: 4px 12px !important;
+            margin: 0 2px !important;
+            font-size: 0.825rem !important;
+            color: #64748b !important;
+            background: transparent !important;
+            transition: all 0.15s;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+            background: #f0f9ff !important;
+            color: #0ea5e9 !important;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+            background: linear-gradient(135deg, #0ea5e9, #22d3ee) !important;
+            color: #fff !important;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(14,165,233,0.25);
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
+            color: #cbd5e1 !important;
+        }
+
+        /* Action buttons inside table */
+        .btn-action {
+            padding: 4px 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .btn-action-edit {
+            background: #eff6ff; color: #3b82f6;
+        }
+        .btn-action-edit:hover { background: #dbeafe; color: #2563eb; }
+        .btn-action-delete {
+            background: #fef2f2; color: #ef4444;
+        }
+        .btn-action-delete:hover { background: #fee2e2; color: #dc2626; }
+        .btn-action-info {
+            background: #f0fdfa; color: #14b8a6;
+        }
+        .btn-action-info:hover { background: #ccfbf1; color: #0d9488; }
+        .btn-action-success {
+            background: #f0fdf4; color: #22c55e;
+        }
+        .btn-action-success:hover { background: #dcfce7; color: #16a34a; }
+
+        /* Page title */
+        .page-title {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+        .page-title small {
+            font-size: 0.85rem;
+            font-weight: 400;
+            color: #94a3b8;
+            margin-left: 8px;
+        }
+
+        /* Top action bar */
+        .table-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        /* Add button */
+        .btn-add {
+            background: linear-gradient(135deg, #0ea5e9, #22d3ee);
+            color: #fff;
+            font-size: 0.825rem;
+            font-weight: 600;
+            padding: 8px 20px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(14,165,233,0.2);
+            transition: all 0.15s;
+        }
+        .btn-add:hover {
+            box-shadow: 0 4px 14px rgba(14,165,233,0.35);
+            transform: translateY(-1px);
+            color: #fff;
+        }
+
+        /* Modal overrides */
+        .modal-content {
+            border-radius: 16px !important;
+            border: none !important;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15) !important;
+        }
+        .modal-header {
+            border-bottom: 1px solid #f1f5f9 !important;
+            padding: 16px 24px !important;
+        }
+        .modal-body { padding: 20px 24px !important; }
+        .modal-footer {
+            border-top: 1px solid #f1f5f9 !important;
+            padding: 12px 24px !important;
+        }
+        .modal-title {
+            font-weight: 700 !important;
+            color: #1e293b !important;
+        }
+
+        /* Badge role */
+        .badge-role {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-role-admin { background: #dcfce7; color: #16a34a; }
+        .badge-role-doctor { background: #dbeafe; color: #2563eb; }
+        .badge-role-default { background: #f1f5f9; color: #64748b; }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="min-h-screen" style="margin:0; background: linear-gradient(135deg, #f0f9ff 0%, #ffffff 40%, #eff6ff 70%, #e0f2fe 100%); background-attachment: fixed;">
+
+    <!-- Top Navbar -->
+    <nav class="top-navbar fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-2.5 shadow-sm">
+        <div class="flex items-center gap-3">
+            <!-- Sidebar toggle (mobile) -->
+            <button onclick="toggleSidebar()" class="lg:hidden p-1.5 rounded-lg hover:bg-gray-100 transition">
+                <svg class="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>
+                </svg>
+            </button>
+            <a href="{% url 'dashboard' %}" class="flex items-center gap-2" style="text-decoration:none;">
+                <div class="bg-gradient-to-br from-primary to-cyan-400 rounded-lg p-1.5">
+                    <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                    </svg>
+                </div>
+                <span class="text-base font-bold bg-gradient-to-r from-primary to-cyan-500 bg-clip-text" style="color:transparent; -webkit-background-clip:text;">ThaoHealthCare 123</span>
+            </a>
+        </div>
+        <div class="flex items-center gap-4">
+            <span class="hidden sm:block text-sm font-semibold text-slate-700 tracking-wide">Quản trị nội bộ</span>
+            {% if user.is_authenticated %}
+            <div class="dropdown">
+                <button class="btn btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius:10px; font-size:0.8rem; padding:6px 10px;">
+                    Hệ thống
+                </button>
+                <ul class="dropdown-menu" style="min-width:240px;">
+                    <li><a class="dropdown-item" href="{% url 'dashboard' %}">Hệ thống quản trị</a></li>
+                    {% if user.role_code != 'patient' %}
+                    <li><a class="dropdown-item" href="{% url 'patient_dashboard' %}">Hệ thống tra cứu</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+            {% endif %}
+            <div class="flex items-center gap-2 bg-gray-50 rounded-full px-3 py-1.5">
+                <div class="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-cyan-400 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/>
+                    </svg>
+                </div>
+                <span class="text-sm font-medium text-gray-600">{{ user.name|default:user.username }}</span>
+            </div>
+            <form action="{% url 'logout' %}" method="post" class="m-0">
+                {% csrf_token %}
+                <button type="submit" class="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition" title="Đăng xuất">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9"/>
+                    </svg>
+                </button>
+            </form>
+        </div>
+    </nav>
+
+    <!-- Sidebar Overlay (mobile) -->
+    <div id="sidebarOverlay" class="fixed inset-0 bg-black/30 z-30 hidden lg:hidden" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar fixed top-[52px] left-0 bottom-0 w-60 bg-white border-r border-gray-100 z-40 transform -translate-x-full lg:translate-x-0 transition-transform duration-200 overflow-y-auto">
+        <div class="px-4 pt-5 pb-3">
+            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Danh sách chức năng</p>
+            <nav class="flex flex-col gap-1">
+                {% if user.is_authenticated and user.role_code == "admin" %}
+                <a href="{% url 'dashboard' %}" class="nav-item-link {% if tab == 'home' %}active{% endif %}">
+                    <svg class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/></svg>
+                    Trang chủ
+                </a>
+                <a href="{% url 'user_list' %}" class="nav-item-link {% if tab == 'users' %}active{% endif %}">
+                    <svg class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
+                    Người dùng
+                </a>
+                <a href="{% url 'facility_list' %}" class="nav-item-link {% if tab == 'facilities' %}active{% endif %}">
+                    <svg class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21"/></svg>
+                    Cơ sở y tế
+                </a>
+                <a href="{% url 'service_list' %}" class="nav-item-link {% if tab == 'services' %}active{% endif %}">
+                    <svg class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.049.58.025 1.194-.14 1.743"/></svg>
+                    Dịch vụ
+                </a>
+                <a href="{% url 'patient_list' %}" class="nav-item-link {% if tab == 'patients' %}active{% endif %}">
+                    <svg class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>
+                    Bệnh nhân
+                </a>
+                <a href="{% url 'examination_list' %}" class="nav-item-link {% if tab == 'examinations' %}active{% endif %}">
+                    <svg class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+                    Khám chữa bệnh
+                </a>
+                <a href="{% url 'report_list' %}" class="nav-item-link {% if tab == 'reports' %}active{% endif %}">
+                    <svg class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+                    Báo cáo
+                </a>
+                {% endif %}
+
+                {% if user.is_authenticated and user.role_code == "doctor" %}
+                <a href="{% url 'dashboard' %}" class="nav-item-link {% if tab == 'home' %}active{% endif %}">
+                    <svg class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/></svg>
+                    Trang chủ
+                </a>
+                <a href="{% url 'diagnosis_list' %}" class="nav-item-link {% if tab == 'diagnosis' %}active{% endif %}">
+                    <svg class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15a2.25 2.25 0 012.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z"/></svg>
+                    Danh mục chẩn đoán
+                </a>
+                <a href="{% url 'diagnosis_report' %}" class="nav-item-link {% if tab == 'diagnosis_report' %}active{% endif %}">
+                    <svg class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+                    Báo cáo thống kê
+                </a>
+                {% endif %}
+            </nav>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="lg:ml-60 pt-[52px] min-h-screen">
+        <div class="p-5">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <!-- Confirm Delete Modal -->
+    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content" style="border-radius:16px; overflow:hidden;">
+                <div class="modal-body text-center" style="padding:32px 24px 20px;">
+                    <div style="width:56px; height:56px; border-radius:50%; background:#fef2f2; display:flex; align-items:center; justify-content:center; margin:0 auto 16px;">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"/>
+                        </svg>
+                    </div>
+                    <h5 style="font-weight:700; color:#1e293b; margin-bottom:6px; font-size:1.05rem;">Xác nhận xóa</h5>
+                    <p id="confirmDeleteMessage" style="color:#64748b; font-size:0.85rem; margin-bottom:0;">Bạn có chắc chắn muốn xóa?</p>
+                </div>
+                <div class="modal-footer justify-content-center" style="border-top:1px solid #f1f5f9; padding:12px 24px; gap:10px;">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="border-radius:10px; font-size:0.825rem; padding:8px 24px;">Hủy</button>
+                    <button type="button" id="confirmDeleteBtn" class="btn" style="background:#ef4444; color:#fff; border:none; border-radius:10px; font-size:0.825rem; font-weight:600; padding:8px 24px;">Xóa</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('-translate-x-full');
+            overlay.classList.toggle('hidden');
+        }
+
+        // Global confirm delete helper
+        let _confirmDeleteModal = null;
+        function confirmDelete(message, onConfirm) {
+            if (!_confirmDeleteModal) {
+                _confirmDeleteModal = new bootstrap.Modal(document.getElementById('confirmDeleteModal'));
+            }
+            document.getElementById('confirmDeleteMessage').textContent = message;
+            const btn = document.getElementById('confirmDeleteBtn');
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            newBtn.id = 'confirmDeleteBtn';
+            newBtn.addEventListener('click', function () {
+                _confirmDeleteModal.hide();
+                onConfirm();
+            });
+            _confirmDeleteModal.show();
+        }
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
+
+

@@ -1,0 +1,342 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Khám chữa bệnh{% endblock %}
+{% block content %}
+
+<div class="table-toolbar">
+    <h3 class="page-title">Khám chữa bệnh <small>Quản lý phiếu khám</small></h3>
+    <button class="btn-add" data-bs-toggle="modal" data-bs-target="#examModal" onclick="openCreateExam()">+ Tạo phiếu khám</button>
+</div>
+
+<div class="table-card">
+    <table id="examTable" class="table table-striped" style="width:100%">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Bệnh nhân</th>
+                <th>Cơ sở y tế</th>
+                <th>BS phụ trách</th>
+                <th>Ngày khám</th>
+                <th>Dịch vụ</th>
+                <th>Thành tiền</th>
+                <th>Trạng thái</th>
+                <th>Hành động</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for exam in examinations %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td><strong>{{ exam.patient.name }}</strong></td>
+                <td>{{ exam.facility.name }}</td>
+                <td>{{ exam.doctor.name|default:"—" }}</td>
+                <td>{{ exam.examination_date|date:"d/m/Y H:i" }}</td>
+                <td>
+                    {% for es in exam.examination_services.all %}
+                        <span class="badge-role badge-role-doctor" style="margin-bottom:2px;">{{ es.service.name }}</span>
+                    {% empty %}
+                        <span style="color:#94a3b8; font-size:0.8rem;">—</span>
+                    {% endfor %}
+                </td>
+                <td>
+                    {% if exam.total_price %}
+                        <a href="javascript:void(0)" onclick="showPriceDetail({{ exam.id }})" style="color:#0ea5e9; font-weight:600; font-size:0.85rem; text-decoration:none;">
+                            {{ exam.total_price|floatformat:0|intcomma }}đ
+                        </a>
+                    {% else %}
+                        <span style="color:#94a3b8; font-size:0.8rem;">0đ</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if exam.status == 'awaiting_payment' %}
+                        <span class="badge-role" style="background:#f3e8ff; color:#9333ea;">Chờ thanh toán</span>
+                    {% elif exam.status == 'pending' %}
+                        <span class="badge-role" style="background:#fef3c7; color:#d97706;">Chờ khám</span>
+                    {% elif exam.status == 'in_progress' %}
+                        <span class="badge-role" style="background:#dbeafe; color:#2563eb;">Đang khám</span>
+                    {% elif exam.status == 'completed' %}
+                        <span class="badge-role" style="background:#dcfce7; color:#16a34a;">Hoàn thành</span>
+                    {% elif exam.status == 'cancelled' %}
+                        <span class="badge-role" style="background:#fee2e2; color:#dc2626;">Đã hủy</span>
+                    {% endif %}
+                </td>
+                <td style="white-space:nowrap;">
+                    {% if exam.status != 'awaiting_payment' and exam.status != 'cancelled' %}
+                        <a href="/examinations/{{ exam.id }}/" class="btn-action btn-action-info">Kết quả khám</a>
+                    {% endif %}
+                    <button class="btn-action btn-action-edit" onclick="openEditExam({{ exam.id }})">Sửa</button>
+                    <button class="btn-action btn-action-delete" onclick="confirmDelete('Xóa phiếu khám của {{ exam.patient.name }}?', () => deleteExam({{ exam.id }}))">Xóa</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Exam Modal (basic info + services) -->
+<div class="modal fade" id="examModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="examModalTitle">Tạo phiếu khám</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="examForm">
+                    <input type="hidden" id="examId">
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size:0.8rem; color:#64748b;">Bệnh nhân <span style="color:red;">*</span></label>
+                            <select id="examPatient" class="form-select" required style="font-size:0.85rem; border-radius:10px;">
+                                <option value="">-- Chọn bệnh nhân --</option>
+                                {% for p in patients %}
+                                <option value="{{ p.id }}">{{ p.name }} ({{ p.identifier }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" style="font-size:0.8rem; color:#64748b;">Cơ sở y tế <span style="color:red;">*</span></label>
+                            <select id="examFacility" class="form-select" required style="font-size:0.85rem; border-radius:10px;" onchange="loadFacilityServices()">
+                                <option value="">-- Chọn cơ sở --</option>
+                                {% for f in facilities %}
+                                <option value="{{ f.id }}">{{ f.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label" style="font-size:0.8rem; color:#64748b;">Bác sĩ phụ trách chính</label>
+                            <select id="examDoctor" class="form-select" style="font-size:0.85rem; border-radius:10px;">
+                                <option value="">-- Chọn bác sĩ --</option>
+                                {% for d in doctors %}
+                                <option value="{{ d.id }}">{{ d.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" style="font-size:0.8rem; color:#64748b;">Bác sĩ hội chẩn</label>
+                            <select id="examConsultDoctors" class="form-select" multiple style="font-size:0.85rem; border-radius:10px; height:80px;">
+                                {% for d in doctors %}
+                                <option value="{{ d.id }}">{{ d.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small style="font-size:0.7rem; color:#94a3b8;">Giữ Ctrl/Cmd để chọn nhiều bác sĩ</small>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" style="font-size:0.8rem; color:#64748b;">Ngày khám <span style="color:red;">*</span></label>
+                            <input type="datetime-local" id="examDate" class="form-control" required style="font-size:0.85rem; border-radius:10px;">
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label" style="font-size:0.8rem; color:#64748b;">Trạng thái</label>
+                            <select id="examStatus" class="form-select" style="font-size:0.85rem; border-radius:10px;">
+                                {% for val, label in status_choices %}
+                                <option value="{{ val }}">{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" style="font-size:0.8rem; color:#64748b;">Ghi chú</label>
+                        <textarea id="examNotes" class="form-control" rows="2" style="font-size:0.85rem; border-radius:10px;"></textarea>
+                    </div>
+
+                    <!-- Services selection -->
+                    <div style="background:#f8fafc; border-radius:12px; padding:16px; border:1px solid #e2e8f0;">
+                        <h6 style="font-weight:700; color:#1e293b; margin:0 0 12px; font-size:0.9rem;">Dịch vụ khám</h6>
+                        <div id="servicesCheckboxes">
+                            <p style="color:#94a3b8; font-size:0.8rem; text-align:center; margin:8px 0;">Chọn cơ sở y tế để hiển thị dịch vụ</p>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="border-radius:10px; font-size:0.825rem;">Hủy</button>
+                <button type="button" class="btn-add" onclick="saveExam()">Lưu phiếu khám</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Price Detail Modal -->
+<div class="modal fade" id="priceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" style="font-size:0.95rem;">Chi tiết chi phí</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="priceModalBody">
+                <p style="text-align:center; color:#94a3b8;">Đang tải...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    $('#examTable').DataTable({
+        language: { search: "Tìm kiếm:", lengthMenu: "Hiển thị _MENU_", info: "Hiển thị _START_-_END_ / _TOTAL_", paginate: { previous: "‹", next: "›" } },
+        order: [[5, 'desc']],
+        pageLength: 10,
+    });
+});
+
+let facilityServices = [];
+let selectedServiceIds = [];
+let selectedConsultDoctorIds = [];
+
+function openCreateExam() {
+    document.getElementById('examModalTitle').textContent = 'Tạo phiếu khám';
+    document.getElementById('examId').value = '';
+    document.getElementById('examForm').reset();
+    document.getElementById('servicesCheckboxes').innerHTML = '<p style="color:#94a3b8; font-size:0.8rem; text-align:center; margin:8px 0;">Chọn cơ sở y tế để hiển thị dịch vụ</p>';
+    facilityServices = [];
+    selectedServiceIds = [];
+}
+
+function openEditExam(id) {
+    openCreateExam();
+    document.getElementById('examModalTitle').textContent = 'Sửa phiếu khám';
+
+    $.get(`/api/examinations/${id}/`, function(data) {
+        document.getElementById('examId').value = data.id;
+        document.getElementById('examPatient').value = data.patient_id;
+        document.getElementById('examFacility').value = data.facility_id;
+        document.getElementById('examDoctor').value = data.doctor_id;
+        document.getElementById('examDate').value = data.examination_date;
+        document.getElementById('examStatus').value = data.status;
+        document.getElementById('examNotes').value = data.notes;
+
+        selectedServiceIds = data.services.map(s => s.service_id);
+        selectedConsultDoctorIds = data.consult_doctors || [];
+
+        // set consult doctors multi-select
+        const consultSelect = document.getElementById('examConsultDoctors');
+        Array.from(consultSelect.options).forEach(opt => {
+            opt.selected = selectedConsultDoctorIds.includes(parseInt(opt.value));
+        });
+
+        loadFacilityServices();
+
+        new bootstrap.Modal(document.getElementById('examModal')).show();
+    });
+}
+
+function loadFacilityServices() {
+    const facilityId = document.getElementById('examFacility').value;
+    const container = document.getElementById('servicesCheckboxes');
+    if (!facilityId) {
+        container.innerHTML = '<p style="color:#94a3b8; font-size:0.8rem; text-align:center; margin:8px 0;">Chọn cơ sở y tế để hiển thị dịch vụ</p>';
+        return;
+    }
+    $.get(`/api/facilities/${facilityId}/services-list/`, function(data) {
+        facilityServices = data.services;
+        if (facilityServices.length === 0) {
+            container.innerHTML = '<p style="color:#94a3b8; font-size:0.8rem; text-align:center; margin:8px 0;">Cơ sở này chưa có dịch vụ nào</p>';
+            return;
+        }
+        let html = '<div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">';
+        facilityServices.forEach(s => {
+            const checked = selectedServiceIds.includes(s.id) ? 'checked' : '';
+            const priceStr = Number(s.price || 0).toLocaleString('vi-VN');
+            html += `
+                <label style="display:flex; align-items:center; gap:8px; padding:8px 12px; background:#fff; border-radius:8px; border:1px solid #e2e8f0; cursor:pointer; font-size:0.8rem; color:#334155;">
+                    <input type="checkbox" class="svc-check" value="${s.id}" data-price="${s.price || 0}" ${checked} style="accent-color:#0ea5e9;">
+                    <span><strong>${s.name}</strong> <span style="color:#94a3b8;">(${s.service_type})</span> <span style="color:#0ea5e9; font-weight:600;">${priceStr}đ</span></span>
+                </label>`;
+        });
+        html += '</div>';
+        container.innerHTML = html;
+    });
+}
+
+function saveExam() {
+    const id = document.getElementById('examId').value;
+    const patientId = document.getElementById('examPatient').value;
+    const facilityId = document.getElementById('examFacility').value;
+    const examDate = document.getElementById('examDate').value;
+
+    if (!patientId || !facilityId || !examDate) {
+        alert('Vui lòng điền đầy đủ thông tin bắt buộc');
+        return;
+    }
+
+    // Collect checked services
+    const checkedServices = [];
+    document.querySelectorAll('.svc-check:checked').forEach(cb => {
+        checkedServices.push({ service_id: parseInt(cb.value), price: parseInt(cb.dataset.price) || 0 });
+    });
+
+    const formData = new FormData();
+    formData.append('patient_id', patientId);
+    formData.append('facility_id', facilityId);
+    formData.append('doctor_id', document.getElementById('examDoctor').value);
+    formData.append('examination_date', examDate);
+    formData.append('status', document.getElementById('examStatus').value);
+    formData.append('overall_result', '');
+    formData.append('notes', document.getElementById('examNotes').value);
+    const consultSelect = document.getElementById('examConsultDoctors');
+    const consultIds = Array.from(consultSelect.selectedOptions).map(o => parseInt(o.value));
+    formData.append('consult_doctors', JSON.stringify(consultIds));
+    formData.append('services', JSON.stringify(checkedServices));
+
+    const url = id ? `/api/examinations/update/${id}/` : '/api/examinations/create/';
+
+    $.ajax({
+        url: url,
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function() { location.reload(); },
+        error: function(xhr) { alert(xhr.responseJSON?.error || 'Có lỗi xảy ra'); }
+    });
+}
+
+function deleteExam(id) {
+    $.post(`/api/examinations/delete/${id}/`, function() {
+        location.reload();
+    }).fail(function(xhr) {
+        alert(xhr.responseJSON?.error || 'Có lỗi xảy ra');
+    });
+}
+
+function showPriceDetail(examId) {
+    const body = document.getElementById('priceModalBody');
+    body.innerHTML = '<p style="text-align:center; color:#94a3b8;">Đang tải...</p>';
+    new bootstrap.Modal(document.getElementById('priceModal')).show();
+
+    $.get(`/api/examinations/${examId}/`, function(data) {
+        if (!data.services || data.services.length === 0) {
+            body.innerHTML = '<p style="text-align:center; color:#94a3b8;">Chưa có dịch vụ nào</p>';
+            return;
+        }
+        let total = 0;
+        let html = '<table class="table table-sm" style="font-size:0.85rem; margin:0;">';
+        html += '<thead><tr><th style="color:#64748b;">Dịch vụ</th><th style="color:#64748b; text-align:right;">Giá tiền</th></tr></thead><tbody>';
+        data.services.forEach(s => {
+            const price = s.price || 0;
+            total += price;
+            html += `<tr><td>${s.service_name}</td><td style="text-align:right; font-weight:600;">${Number(price).toLocaleString('vi-VN')}đ</td></tr>`;
+        });
+        html += '</tbody>';
+        html += `<tfoot><tr style="border-top:2px solid #e2e8f0;"><td style="font-weight:700; color:#1e293b;">Tổng cộng</td><td style="text-align:right; font-weight:700; color:#0ea5e9; font-size:0.95rem;">${Number(total).toLocaleString('vi-VN')}đ</td></tr></tfoot>`;
+        html += '</table>';
+        body.innerHTML = html;
+    });
+}
+</script>
+
+{% endblock %}

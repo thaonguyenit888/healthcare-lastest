@@ -1,0 +1,116 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng nhập Bệnh nhân - ThaoHealthCare</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0ea5e9',
+                        'primary-dark': '#0284c7',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gradient-to-br from-sky-50 via-white to-blue-100 min-h-screen flex flex-col">
+
+    <!-- Top Navbar -->
+    <nav class="bg-white/80 backdrop-blur text-gray-700 flex items-center justify-between px-6 py-3 shadow-sm border-b border-gray-200">
+        <div class="flex items-center gap-2">
+            <div class="bg-primary rounded-lg p-1.5">
+                <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                          d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+            </div>
+            <span class="text-lg font-bold tracking-wide text-primary">ThaoHealthCare</span>
+        </div>
+        <div class="text-sm text-gray-500">Cổng tra cứu bệnh nhân</div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col items-center justify-center px-4">
+
+        <!-- Logo + Title -->
+        <div class="text-center mb-10">
+            <div class="flex items-center justify-center gap-3 mb-3">
+                <div class="bg-gradient-to-br from-primary to-cyan-400 rounded-2xl p-3 shadow-lg shadow-primary/20">
+                    <svg class="w-9 h-9 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                              d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                </div>
+                <span class="text-3xl font-extrabold bg-gradient-to-r from-primary to-cyan-500 bg-clip-text text-transparent tracking-wide">ThaoHealthCare</span>
+            </div>
+            <p class="text-sm text-gray-400">Nền tảng hỗ trợ tư vấn khám chữa bệnh từ xa</p>
+            <h2 class="text-xl font-medium text-gray-500 mt-2">Tra cứu kết quả khám bệnh</h2>
+        </div>
+
+        <!-- Login Card -->
+        <div class="bg-white rounded-2xl shadow-xl shadow-gray-200/50 w-full max-w-md p-8 border border-gray-100">
+            <h3 class="text-center text-gray-600 text-lg font-semibold mb-6">Đăng nhập Bệnh nhân</h3>
+
+            {% if error %}
+                <div class="bg-red-50 border border-red-200 text-red-600 px-4 py-2.5 rounded-lg mb-5 text-sm">
+                    {{ error }}
+                </div>
+            {% endif %}
+
+            <form method="post">
+                {% csrf_token %}
+
+                <!-- Username -->
+                <div class="mb-4 relative">
+                    <input type="text" name="username" id="id_username" autofocus required
+                           placeholder="Tài khoản"
+                           class="w-full border border-gray-200 rounded-xl px-4 py-3 pr-11 text-sm bg-gray-50/50 focus:bg-white focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all">
+                    <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-300">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                  d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                        </svg>
+                    </span>
+                </div>
+
+                <!-- Password -->
+                <div class="mb-6 relative">
+                    <input type="password" name="password" id="id_password" required
+                           placeholder="Mật khẩu"
+                           class="w-full border border-gray-200 rounded-xl px-4 py-3 pr-11 text-sm bg-gray-50/50 focus:bg-white focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all">
+                    <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-300 cursor-pointer hover:text-gray-500 transition"
+                          onclick="togglePassword()">
+                        <svg id="eye-icon" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                  d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    </span>
+                </div>
+
+                <!-- Submit -->
+                <div class="flex justify-end">
+                    <button type="submit"
+                            class="bg-gradient-to-r from-primary to-cyan-400 hover:from-primary-dark hover:to-cyan-500 text-white font-semibold px-7 py-2.5 rounded-xl text-sm shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all">
+                        Đăng nhập
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function togglePassword() {
+            const input = document.getElementById('id_password');
+            input.type = input.type === 'password' ? 'text' : 'password';
+        }
+    </script>
+</body>
+</html>

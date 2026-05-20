@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% load static humanize %}
+{% block title %}Quản lý Dịch vụ{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+
+<h3 class="page-title">Quản lý Dịch vụ</h3>
+
+<div class="table-toolbar">
+    <div></div>
+    <button class="btn-add" onclick="openCreateModal()">+ Thêm dịch vụ</button>
+</div>
+
+<div class="table-card">
+<table id="serviceTable" class="table">
+    <thead>
+        <tr>
+            <th>Mã</th>
+            <th>Tên dịch vụ</th>
+            <th>Loại</th>
+            <th>Giá tiền</th>
+            <th>Mô tả</th>
+            <th>Số cơ sở sử dụng</th>
+            <th>Hành động</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for s in services %}
+        <tr id="row-{{ s.id }}">
+            <td><span style="font-weight:500;">{{ s.code }}</span></td>
+            <td>{{ s.name }}</td>
+            <td><span class="badge-role badge-role-doctor">{{ s.get_service_type_display }}</span></td>
+            <td style="font-weight:600; color:#0ea5e9;">{{ s.price|floatformat:0|intcomma }}đ</td>
+            <td>{{ s.description|default:"" }}</td>
+            <td><span class="badge-role badge-role-default">{{ s.facilities.count }}</span></td>
+            <td style="white-space:nowrap;">
+                <button class="btn-action btn-action-edit" onclick="openEditModal({{ s.id }}, '{{ s.code|escapejs }}', '{{ s.name|escapejs }}', '{{ s.service_type }}', {{ s.price|floatformat:0|default:"0" }}, `{{ s.description|default:''|escapejs }}`)">Sửa</button>
+                <button class="btn-action btn-action-delete" onclick="deleteService({{ s.id }})">Xóa</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="svcModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="svcForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="svcModalLabel">Thêm dịch vụ</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="svc-id">
+          <div class="mb-3">
+            <label for="svc-code" class="form-label">Mã dịch vụ</label>
+            <input type="text" class="form-control" id="svc-code" required placeholder="vd: SVC001">
+          </div>
+          <div class="mb-3">
+            <label for="svc-name" class="form-label">Tên dịch vụ</label>
+            <input type="text" class="form-control" id="svc-name" required placeholder="vd: Khám tổng quát">
+          </div>
+          <div class="mb-3">
+            <label for="svc-type" class="form-label">Loại dịch vụ</label>
+            <select class="form-select" id="svc-type" required>
+              {% for value, label in service_type_choices %}
+                <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="svc-price" class="form-label">Giá tiền (đ)</label>
+            <input type="number" class="form-control" id="svc-price" min="0" value="0" placeholder="vd: 150000">
+          </div>
+          <div class="mb-3">
+            <label for="svc-description" class="form-label">Mô tả</label>
+            <textarea class="form-control" id="svc-description" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn-add" style="margin:0;">Lưu</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="border-radius:10px; font-size:0.825rem;">Hủy</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+$(document).ready(function () {
+    $('#serviceTable').DataTable({
+        language: {
+            search: "Tìm kiếm:",
+            lengthMenu: "Chi tiết _MENU_",
+            info: "Hiển thị từ _START_ tới _END_ trong số _TOTAL_ bản ghi",
+            paginate: { previous: "«", next: "»" },
+            zeroRecords: "Không tìm thấy dữ liệu",
+        }
+    });
+
+    $('#svcForm').on('submit', function (e) {
+        e.preventDefault();
+        const id = $('#svc-id').val();
+        const data = {
+            code: $('#svc-code').val(),
+            name: $('#svc-name').val(),
+            service_type: $('#svc-type').val(),
+            price: $('#svc-price').val() || 0,
+            description: $('#svc-description').val(),
+        };
+        const url = id ? `/api/services/update/${id}/` : '/api/services/create/';
+        $.ajax({
+            url: url, type: 'POST', data: JSON.stringify(data), contentType: 'application/json',
+            success: function () { location.reload(); },
+            error: function (xhr) { alert('Lỗi: ' + (xhr.responseJSON?.error || 'Không xác định')); }
+        });
+    });
+});
+
+function openCreateModal() {
+    $('#svcForm')[0].reset();
+    $('#svc-id').val('');
+    $('#svc-type').val('khac');
+    $('#svc-price').val(0);
+    $('#svcModalLabel').text('Thêm dịch vụ');
+    new bootstrap.Modal(document.getElementById('svcModal')).show();
+}
+
+function openEditModal(id, code, name, serviceType, price, description) {
+    $('#svc-id').val(id);
+    $('#svc-code').val(code);
+    $('#svc-name').val(name);
+    $('#svc-type').val(serviceType);
+    $('#svc-price').val(price);
+    $('#svc-description').val(description);
+    $('#svcModalLabel').text('Cập nhật dịch vụ');
+    new bootstrap.Modal(document.getElementById('svcModal')).show();
+}
+
+function deleteService(id) {
+    confirmDelete('Bạn có chắc chắn muốn xóa dịch vụ này?', function () {
+        $.ajax({
+            url: `/api/services/delete/${id}/`, type: 'POST',
+            success: function () { location.reload(); },
+            error: function (xhr) { alert('Lỗi: ' + (xhr.responseJSON?.error || 'Không xác định')); }
+        });
+    });
+}
+</script>
+{% endblock %}

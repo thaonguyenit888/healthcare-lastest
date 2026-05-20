@@ -1,0 +1,21 @@
+<h2>Kết quả Chuẩn đoán (Tra cứu Public)</h2>
+
+<p><strong>Họ tên bệnh nhân:</strong> {{ record.patient.name }}</p>
+<p><strong>Thời gian khám:</strong> {{ record.examination_time }}</p>
+<p><strong>Loại dịch vụ:</strong> {{ record.service_type }}</p>
+<p><strong>Khoa:</strong> {{ record.department }}</p>
+<p><strong>Nơi khám:</strong> {{ record.examination_place }}</p>
+<p><strong>Bác sĩ:</strong> {{ record.doctor.name|default:"" }}</p>
+<p><strong>Kết quả chuẩn đoán:</strong> {{ record.diagnosis_result }}</p>
+
+<h4>Tài liệu / Hình ảnh:</h4>
+<ul>
+    {% for doc in documents %}
+        {% if doc.is_image %}
+            <img src="{{ doc.file_url }}" alt="{{ doc.file_name }}" style="max-width: 100%; max-height: 400px; margin-bottom: 10px;">
+        {% else %}
+            <p><a href="{{ doc.file_url }}" target="_blank">{{ doc.file_name }}</a></p>
+        {% endif %}
+    {% endfor %}
+
+</ul>

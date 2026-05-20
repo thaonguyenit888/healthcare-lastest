@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Quản lý Vai trò{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+
+<h3 class="page-title">Quản lý Người dùng <small>Vai trò</small></h3>
+
+{% include "user_subtabs.html" %}
+
+<div class="table-toolbar">
+    <div></div>
+    <button class="btn-add" onclick="openCreateModal()">+ Thêm vai trò</button>
+</div>
+
+<div class="table-card">
+<table id="roleTable" class="table">
+    <thead>
+        <tr>
+            <th>Mã</th>
+            <th>Tên</th>
+            <th>Mô tả</th>
+            <th>Số quyền</th>
+            <th>Hành động</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for r in roles %}
+        <tr id="row-{{ r.id }}">
+            <td><span style="font-weight:500;">{{ r.code }}</span></td>
+            <td>{{ r.name }}</td>
+            <td>{{ r.description|default:"" }}</td>
+            <td><span class="badge-role badge-role-default">{{ r.permissions.count }}</span></td>
+            <td>
+                <button class="btn-action btn-action-edit" onclick="openEditModal({{ r.id }})">Sửa</button>
+                <button class="btn-action btn-action-delete" onclick="deleteRole({{ r.id }})">Xóa</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="roleModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form id="roleForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="roleModalLabel">Thêm vai trò</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="role-id">
+          <div class="mb-3">
+            <label for="role-code" class="form-label">Mã vai trò</label>
+            <input type="text" class="form-control" id="role-code" required>
+          </div>
+          <div class="mb-3">
+            <label for="role-name" class="form-label">Tên vai trò</label>
+            <input type="text" class="form-control" id="role-name" required>
+          </div>
+          <div class="mb-3">
+            <label for="role-description" class="form-label">Mô tả</label>
+            <textarea class="form-control" id="role-description" rows="2"></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Phân quyền</label>
+            <div id="permissions-checkboxes" style="max-height:250px; overflow-y:auto; border:1px solid #e2e8f0; padding:12px; border-radius:10px;">
+              {% for p in permissions %}
+              <div class="form-check">
+                <input class="form-check-input perm-checkbox" type="checkbox" value="{{ p.id }}" id="perm-{{ p.id }}">
+                <label class="form-check-label" for="perm-{{ p.id }}">
+                  <strong>{{ p.code }}</strong> - {{ p.name }}
+                </label>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn-add" style="margin:0;">Lưu</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="border-radius:10px; font-size:0.825rem;">Hủy</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+$(document).ready(function () {
+    $('#roleTable').DataTable({
+        language: {
+            search: "Tìm kiếm:",
+            lengthMenu: "Chi tiết _MENU_",
+            info: "Hiển thị từ _START_ tới _END_ trong số _TOTAL_ bản ghi",
+            paginate: { previous: "«", next: "»" },
+            zeroRecords: "Không tìm thấy dữ liệu",
+        }
+    });
+
+    $('#roleForm').on('submit', function (e) {
+        e.preventDefault();
+        const id = $('#role-id').val();
+        const data = {
+            code: $('#role-code').val(),
+            name: $('#role-name').val(),
+            description: $('#role-description').val(),
+            permissions: $('.perm-checkbox:checked').map(function(){ return parseInt($(this).val()); }).get()
+        };
+        const url = id ? `/api/roles/update/${id}/` : '/api/roles/create/';
+        $.ajax({
+            url: url, type: 'POST', data: JSON.stringify(data), contentType: 'application/json',
+            success: function () { location.reload(); },
+            error: function (xhr) { alert('Lỗi: ' + (xhr.responseJSON?.error || 'Không xác định')); }
+        });
+    });
+});
+
+function openCreateModal() {
+    $('#roleForm')[0].reset();
+    $('#role-id').val('');
+    $('.perm-checkbox').prop('checked', false);
+    $('#roleModalLabel').text('Thêm vai trò');
+    new bootstrap.Modal(document.getElementById('roleModal')).show();
+}
+
+function openEditModal(id) {
+    $.get(`/api/roles/${id}/`, function (data) {
+        $('#role-id').val(data.id);
+        $('#role-code').val(data.code);
+        $('#role-name').val(data.name);
+        $('#role-description').val(data.description);
+        $('.perm-checkbox').prop('checked', false);
+        data.permissions.forEach(function(pid) { $(`#perm-${pid}`).prop('checked', true); });
+        $('#roleModalLabel').text('Cập nhật vai trò');
+        new bootstrap.Modal(document.getElementById('roleModal')).show();
+    });
+}
+
+function deleteRole(id) {
+    confirmDelete('Bạn có chắc chắn muốn xóa vai trò này?', function () {
+        $.ajax({
+            url: `/api/roles/delete/${id}/`, type: 'POST',
+            success: function () { location.reload(); },
+            error: function (xhr) { alert('Lỗi: ' + (xhr.responseJSON?.error || 'Không xác định')); }
+        });
+    });
+}
+</script>
+{% endblock %}

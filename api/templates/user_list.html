@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Quản lý Người dùng{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+
+<h3 class="page-title">Quản lý Người dùng <small>Danh sách</small></h3>
+
+{% include "user_subtabs.html" %}
+
+<div class="table-toolbar">
+    <div></div>
+    <button class="btn-add" data-bs-toggle="modal" data-bs-target="#userModal" onclick="openCreateModal()">+ Thêm mới</button>
+</div>
+
+<div class="table-card">
+<table id="userTable" class="table">
+    <thead>
+        <tr>
+            <th>Mã</th>
+            <th>Username</th>
+            <th>Tên</th>
+            <th>Vai trò</th>
+            <th>Cơ sở y tế</th>
+            <th>Hành động</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for u in users %}
+        <tr>
+            <td><span style="font-weight:500;">{{ u.code }}</span></td>
+            <td>{{ u.username }}</td>
+            <td>{{ u.name }}</td>
+            <td>
+                {% if u.role %}
+                <span class="badge-role {% if u.role_code == 'admin' %}badge-role-admin{% elif u.role_code == 'doctor' %}badge-role-doctor{% else %}badge-role-default{% endif %}">{{ u.role.name }}</span>
+                {% else %}
+                <span style="color:#94a3b8;">--</span>
+                {% endif %}
+            </td>
+            <td>{{ u.facility.name|default:"" }}</td>
+            <td>
+                <button class="btn-action btn-action-edit" data-bs-toggle="modal" data-bs-target="#userModal"
+                    onclick="openEditModal('{{ u.id }}', '{{ u.code }}', '{{ u.username }}', '{{ u.name }}', '{{ u.role.id|default:'' }}', '{{ u.facility.id|default:'' }}', '{{ u.patient.id|default:'' }}')">
+                    Sửa
+                </button>
+                <button class="btn-action btn-action-delete" onclick="deleteUser('{{ u.id }}')">Xóa</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<!-- Modal Thêm/Sửa Người dùng -->
+<div class="modal fade" id="userModal" tabindex="-1" aria-labelledby="userModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="userForm">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title" id="userModalLabel">Thêm người dùng</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="user-id" name="id">
+          <div class="mb-3">
+            <label for="user-code" class="form-label">Mã</label>
+            <input type="text" class="form-control" id="user-code" name="code" required>
+          </div>
+          <div class="mb-3">
+            <label for="user-username" class="form-label">Username</label>
+            <input type="text" class="form-control" id="user-username" name="username" required>
+          </div>
+          <div class="mb-3">
+            <label for="user-password" class="form-label">Mật khẩu <small><i>(Để trống nếu không đổi mật khẩu khi sửa)</i></small></label>
+            <input type="password" class="form-control" id="user-password" name="password">
+          </div>
+          <div class="mb-3">
+            <label for="user-name" class="form-label">Tên</label>
+            <input type="text" class="form-control" id="user-name" name="name" required>
+          </div>
+          <div class="mb-3">
+            <label for="user-role" class="form-label">Vai trò</label>
+            <select class="form-select" id="user-role" name="role">
+              <option value="">-- Chọn vai trò --</option>
+              {% for r in roles %}
+              <option value="{{ r.id }}">{{ r.name }}</option>
+              {% endfor %}
+            </select>
+          </div>          <div class="mb-3" id="patient-field" style="display:none;">
+            <label for="user-patient" class="form-label">Bệnh nhân (CCCD/BHYT/SĐT)</label>
+            <select class="form-select" id="user-patient" name="patient">
+              <option value="">-- Chọn bệnh nhân --</option>
+              {% for p in patients %}
+              <option value="{{ p.id }}" data-name="{{ p.name }}" data-in-use="{{ p.user.id|default:'' }}">{{ p.identifier }} — {{ p.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="user-facility" class="form-label">Cơ sở y tế</label>
+            <select class="form-select" id="user-facility" name="facility">
+              <option value="">-- Không chọn --</option>
+              {% for f in facilities %}
+              <option value="{{ f.id }}">{{ f.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn-add" style="margin:0;">Lưu</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="border-radius:10px; font-size:0.825rem;">Hủy</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+$(document).ready(function () {
+    $('#userTable').DataTable({
+        language: {
+            search: "Tìm kiếm:",
+            lengthMenu: "Chi tiết _MENU_",
+            info: "Hiển thị từ _START_ tới _END_ trong số _TOTAL_ bản ghi",
+            paginate: { previous: "«", next: "»" },
+            zeroRecords: "Không tìm thấy dữ liệu",
+        }
+    });
+});
+
+const patientRoleId = '{{ patient_role_id }}';
+
+function openCreateModal() {
+    $('#userForm')[0].reset();
+    $('#user-id').val('');
+    $('#user-patient').val('');
+    setEditLocks(false);
+    applyRoleBehavior();
+    filterPatientOptionsForEdit(null);
+    $('#userModalLabel').text('Thêm người dùng');
+}
+
+function openEditModal(id, code, username, name, role, facility, patientId) {
+    $('#user-id').val(id);
+    $('#user-code').val(code);
+    $('#user-username').val(username);
+    $('#user-password').val('');
+    $('#user-name').val(name);
+    $('#user-role').val(role);
+    filterPatientOptionsForEdit(patientId);
+    $('#user-patient').val(patientId);
+    setEditLocks(role === patientRoleId);
+    applyRoleBehavior();
+    $('#user-facility').val(facility);
+    $('#userModalLabel').text('Cập nhật người dùng');
+}
+
+function syncNameFromPatient() {
+    const selected = $('#user-patient option:selected');
+    const patientName = selected.data('name');
+    if (patientName) {
+        $('#user-name').val(patientName);
+    }
+}
+
+function filterPatientOptionsForEdit(currentId) {
+    $('#user-patient option').each(function() {
+        const inUse = $(this).data('in-use');
+        const isCurrent = currentId && String(inUse) === String(currentId);
+        if (inUse && !isCurrent) {
+            $(this).prop('disabled', true).hide();
+        } else {
+            $(this).prop('disabled', false).show();
+        }
+    });
+    if (!currentId) {
+        $('#user-patient').val('');
+    }
+}
+
+function setEditLocks(isPatientRole) {
+    $('#user-role').prop('disabled', isPatientRole);
+    $('#user-patient').prop('disabled', isPatientRole);
+}
+
+function applyRoleBehavior() {
+    const isPatient = $('#user-role').val() === patientRoleId;
+    if (isPatient) {
+        $('#patient-field').show();
+        $('#user-patient').prop('required', true);
+        $('#user-name').prop('readonly', true).addClass('bg-gray-50');
+        syncNameFromPatient();
+    } else {
+        $('#patient-field').hide();
+        $('#user-patient').prop('required', false).val('');
+        $('#user-name').prop('readonly', false).removeClass('bg-gray-50');
+    }
+}
+
+$('#user-role').on('change', function() {
+    applyRoleBehavior();
+});
+
+$('#user-patient').on('change', function() {
+    syncNameFromPatient();
+});
+
+$('#userForm').submit(function(e){
+    e.preventDefault();
+    const id = $('#user-id').val();
+    const url = id ? `/api/users/update/${id}/` : '/api/users/create/';
+
+    const data = {
+        code: $('#user-code').val(),
+        username: $('#user-username').val(),
+        password: $('#user-password').val(),
+        name: $('#user-name').val(),
+        role: $('#user-role').val(),
+        patient: $('#user-patient').val(),
+        facility: $('#user-facility').val()
+    };
+
+    $.ajax({
+        url: url,
+        method: 'POST',
+        contentType: "application/json",
+        data: JSON.stringify(data),
+        headers: {'X-CSRFToken': '{{ csrf_token }}'},
+        success: function(response){
+            location.reload();
+        },
+        error: function(xhr){
+            alert('Lỗi: ' + xhr.responseJSON.error);
+        }
+    });
+});
+
+function deleteUser(id) {
+    confirmDelete('Bạn có chắc muốn xóa người dùng này không?', function () {
+        $.ajax({
+            url: `/api/users/delete/${id}/`,
+            method: 'POST',
+            headers: {'X-CSRFToken': '{{ csrf_token }}'},
+            success: function(response){
+                location.reload();
+            },
+            error: function(xhr){
+                alert('Lỗi: ' + xhr.responseJSON.error);
+            }
+        });
+    });
+}
+</script>
+{% endblock %}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

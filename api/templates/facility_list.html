@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Quản lý Cơ sở Y tế{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+
+<h3 class="page-title">Danh sách Cơ sở Y tế</h3>
+
+<div class="table-toolbar">
+    <div></div>
+    <button class="btn-add" onclick="openCreateModal()">+ Thêm mới</button>
+</div>
+
+<div class="table-card">
+<table id="facilityTable" class="table">
+    <thead>
+        <tr>
+            <th>Mã</th>
+            <th>Tên</th>
+            <th>Địa chỉ</th>
+            <th>Trạng thái</th>
+            <th>Dịch vụ</th>
+            <th>Hành động</th>
+        </tr>
+    </thead>
+    <tbody id="facilityBody">
+        {% for f in facilities %}
+        <tr id="row-{{ f.id }}">
+            <td><span style="font-weight:500;">{{ f.code }}</span></td>
+            <td>{{ f.name }}</td>
+            <td>{{ f.address }}</td>
+            <td>
+                {% if f.status == 'active' %}
+                    <span class="badge-role badge-role-admin">Đang hoạt động</span>
+                {% elif f.status == 'paused' %}
+                    <span class="badge-role" style="background:#fef3c7; color:#d97706;">Tạm dừng</span>
+                {% elif f.status == 'holiday' %}
+                    <span class="badge-role" style="background:#ede9fe; color:#7c3aed;">Nghỉ lễ</span>
+                {% elif f.status == 'maintenance' %}
+                    <span class="badge-role badge-role-doctor">Bảo trì</span>
+                {% elif f.status == 'closed' %}
+                    <span class="badge-role" style="background:#fef2f2; color:#ef4444;">Ngừng hoạt động</span>
+                {% else %}
+                    <span class="badge-role badge-role-default">{{ f.get_status_display }}</span>
+                {% endif %}
+            </td>
+            <td>
+                <span class="badge-role badge-role-default">{{ f.services.count }} dịch vụ</span>
+            </td>
+            <td style="white-space:nowrap;">
+                <button class="btn-action btn-action-edit" onclick="openEditModal({{ f.id }})">Sửa</button>
+                <button class="btn-action btn-action-info" onclick="openServiceModal({{ f.id }}, '{{ f.name|escapejs }}')">Dịch vụ</button>
+                <button class="btn-action btn-action-delete" onclick="deleteFacility({{ f.id }})">Xóa</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<!-- Modal thêm/sửa cơ sở -->
+<div class="modal fade" id="facilityModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="facilityForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="facilityModalLabel">Thêm cơ sở y tế</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="facility-id">
+          <div class="mb-3">
+            <label for="facility-code" class="form-label">Mã</label>
+            <input type="text" class="form-control" id="facility-code" required>
+          </div>
+          <div class="mb-3">
+            <label for="facility-name" class="form-label">Tên</label>
+            <input type="text" class="form-control" id="facility-name" required>
+          </div>
+          <div class="mb-3">
+            <label for="facility-address" class="form-label">Địa chỉ</label>
+            <textarea class="form-control" id="facility-address" required></textarea>
+          </div>
+          <div class="mb-3">
+            <label for="facility-status" class="form-label">Trạng thái</label>
+            <select class="form-select" id="facility-status">
+              {% for value, label in status_choices %}
+                <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn-add" style="margin:0;">Lưu</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="border-radius:10px; font-size:0.825rem;">Hủy</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal quản lý dịch vụ cho cơ sở -->
+<div class="modal fade" id="serviceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form id="serviceForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="serviceModalLabel">Quản lý dịch vụ</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="service-facility-id">
+          <div id="service-checkboxes" style="max-height:400px; overflow-y:auto; border:1px solid #e2e8f0; padding:12px; border-radius:10px;">
+            {% for group in grouped_services %}
+            <div style="margin-bottom:12px;">
+              <div style="font-weight:700; font-size:0.8rem; color:#0ea5e9; text-transform:uppercase; letter-spacing:0.03em; padding:6px 0 4px; border-bottom:1px solid #f1f5f9; margin-bottom:6px;">
+                {{ group.type_label }}
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:2px 12px;">
+              {% for s in group.items %}
+                <div class="form-check" style="padding-left:24px;">
+                  <input class="form-check-input svc-checkbox" type="checkbox" value="{{ s.id }}" id="svc-{{ s.id }}">
+                  <label class="form-check-label" for="svc-{{ s.id }}" style="font-size:0.85rem;">
+                    <strong>{{ s.code }}</strong> - {{ s.name }}
+                  </label>
+                </div>
+              {% endfor %}
+              </div>
+            </div>
+            {% empty %}
+            <p style="color:#94a3b8; font-size:0.85rem; margin:0;">Chưa có dịch vụ nào. Vui lòng thêm dịch vụ trước.</p>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn-add" style="margin:0;">Lưu</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="border-radius:10px; font-size:0.825rem;">Hủy</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+$(document).ready(function () {
+    $('#facilityTable').DataTable({
+        language: {
+            search: "Tìm kiếm:",
+            lengthMenu: "Chi tiết _MENU_",
+            info: "Hiển thị từ _START_ tới _END_ trong số _TOTAL_ bản ghi",
+            paginate: { previous: "«", next: "»" },
+            zeroRecords: "Không tìm thấy dữ liệu",
+        }
+    });
+
+    $('#facilityForm').on('submit', function (e) {
+        e.preventDefault();
+        const id = $('#facility-id').val();
+        const data = JSON.stringify({
+            code: $('#facility-code').val(),
+            name: $('#facility-name').val(),
+            address: $('#facility-address').val(),
+            status: $('#facility-status').val(),
+        });
+        const url = id ? `/api/facilities/update/${id}/` : `/api/facilities/create/`;
+        $.ajax({
+            url: url, type: 'POST', data: data, contentType: 'application/json',
+            success: function () { location.reload(); },
+            error: function (xhr) { alert('Lỗi: ' + (xhr.responseJSON?.error || 'Không xác định')); }
+        });
+    });
+
+    $('#serviceForm').on('submit', function (e) {
+        e.preventDefault();
+        const facilityId = $('#service-facility-id').val();
+        const services = $('.svc-checkbox:checked').map(function(){ return parseInt($(this).val()); }).get();
+        $.ajax({
+            url: `/api/facilities/${facilityId}/services/`,
+            type: 'POST',
+            data: JSON.stringify({ services: services }),
+            contentType: 'application/json',
+            success: function () { location.reload(); },
+            error: function (xhr) { alert('Lỗi: ' + (xhr.responseJSON?.error || 'Không xác định')); }
+        });
+    });
+});
+
+function openCreateModal() {
+    $('#facilityForm')[0].reset();
+    $('#facility-id').val('');
+    $('#facility-status').val('active');
+    $('#facilityModalLabel').text('Thêm cơ sở y tế');
+    new bootstrap.Modal(document.getElementById('facilityModal')).show();
+}
+
+function openEditModal(id) {
+    $.get(`/api/facilities/${id}/`, function (data) {
+        $('#facility-id').val(data.id);
+        $('#facility-code').val(data.code);
+        $('#facility-name').val(data.name);
+        $('#facility-address').val(data.address);
+        $('#facility-status').val(data.status);
+        $('#facilityModalLabel').text('Cập nhật cơ sở y tế');
+        new bootstrap.Modal(document.getElementById('facilityModal')).show();
+    });
+}
+
+function openServiceModal(facilityId, facilityName) {
+    $('#service-facility-id').val(facilityId);
+    $('#serviceModalLabel').text('Dịch vụ - ' + facilityName);
+    $('.svc-checkbox').prop('checked', false);
+    $.get(`/api/facilities/${facilityId}/`, function (data) {
+        data.services.forEach(function(sid) {
+            $(`#svc-${sid}`).prop('checked', true);
+        });
+        new bootstrap.Modal(document.getElementById('serviceModal')).show();
+    });
+}
+
+function deleteFacility(id) {
+    confirmDelete('Bạn có chắc chắn muốn xóa cơ sở y tế này?', function () {
+        $.ajax({
+            url: `/api/facilities/delete/${id}/`, type: 'POST',
+            success: function () { $('#row-' + id).remove(); },
+            error: function (xhr) { alert('Lỗi: ' + (xhr.responseJSON?.error || 'Không xác định')); }
+        });
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,213 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Tra cứu{% endblock %} - ThaoHealthCare</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0ea5e9',
+                        'primary-dark': '#0284c7',
+                    }
+                }
+            },
+            corePlugins: {
+                preflight: false,
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        .sidebar { font-family: system-ui, -apple-system, sans-serif; }
+        .sidebar * { box-sizing: border-box; }
+        .sidebar a, .sidebar button { text-decoration: none; }
+        .nav-item-link {
+            display: flex; align-items: center; gap: 0.75rem;
+            padding: 0.6rem 1rem; border-radius: 0.75rem;
+            color: #475569; font-size: 0.875rem; font-weight: 500;
+            transition: all 0.15s;
+        }
+        .nav-item-link:hover { background: #f0f9ff; color: #0ea5e9; }
+        .nav-item-link.active { background: linear-gradient(135deg, #0ea5e9, #22d3ee); color: #fff; box-shadow: 0 4px 12px rgba(14,165,233,0.25); }
+        .nav-item-link.active svg { color: #fff; }
+        .top-navbar {
+            background: rgba(255,255,255,0.85); backdrop-filter: blur(12px);
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .table-card {
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
+            border: 1px solid #f1f5f9;
+            overflow: hidden;
+            padding: 8px;
+        }
+        .table-card .table { margin-bottom: 0; }
+
+        .table-card thead th {
+            background: #f8fafc !important;
+            border-bottom: 2px solid #e2e8f0 !important;
+            color: #475569 !important;
+            font-weight: 600 !important;
+            font-size: 0.8rem !important;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            padding: 12px 16px !important;
+            white-space: nowrap;
+        }
+        .table-card tbody td {
+            padding: 10px 16px !important;
+            font-size: 0.875rem;
+            color: #334155;
+            border-bottom: 1px solid #f1f5f9 !important;
+            vertical-align: middle;
+        }
+        .table-card tbody tr:hover { background: #f0f9ff !important; }
+
+        .btn-action {
+            padding: 4px 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .btn-action-info { background: #f0fdfa; color: #14b8a6; }
+        .btn-action-info:hover { background: #ccfbf1; color: #0d9488; }
+
+        .page-title {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+
+        .btn-add {
+            background: linear-gradient(135deg, #0ea5e9, #22d3ee);
+            color: #fff;
+            font-size: 0.825rem;
+            font-weight: 600;
+            padding: 8px 20px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(14,165,233,0.2);
+            transition: all 0.15s;
+        }
+        .btn-add:hover {
+            box-shadow: 0 4px 14px rgba(14,165,233,0.35);
+            transform: translateY(-1px);
+            color: #fff;
+        }
+
+        .badge-role {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-role-doctor { background: #dbeafe; color: #2563eb; }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="min-h-screen" style="margin:0; background: linear-gradient(135deg, #f0f9ff 0%, #ffffff 40%, #eff6ff 70%, #e0f2fe 100%); background-attachment: fixed;">
+
+    <!-- Top Navbar -->
+    <nav class="top-navbar fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-2.5 shadow-sm">
+        <div class="flex items-center gap-3">
+            <button onclick="toggleSidebar()" class="lg:hidden p-1.5 rounded-lg hover:bg-gray-100 transition">
+                <svg class="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>
+                </svg>
+            </button>
+            <a href="{% url 'patient_dashboard' %}" class="flex items-center gap-2" style="text-decoration:none;">
+                <div class="bg-gradient-to-br from-primary to-cyan-400 rounded-lg p-1.5">
+                    <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                    </svg>
+                </div>
+                <span class="text-base font-bold bg-gradient-to-r from-primary to-cyan-500 bg-clip-text" style="color:transparent; -webkit-background-clip:text;">ThaoHealthCare</span>
+            </a>
+        </div>
+        <div class="flex items-center gap-4">
+            <span class="hidden sm:block text-sm font-semibold text-slate-700 tracking-wide">Cổng tra cứu bệnh nhân</span>
+            {% if user.is_authenticated %}
+            <div class="dropdown">
+                <button class="btn btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius:10px; font-size:0.8rem; padding:6px 10px;">
+                    Hệ thống
+                </button>
+                <ul class="dropdown-menu" style="min-width:240px;">
+                    <li><a class="dropdown-item" href="{% url 'dashboard' %}">Hệ thống quản trị</a></li>
+                    {% if user.role_code != 'patient' %}
+                    <li><a class="dropdown-item" href="{% url 'patient_dashboard' %}">Hệ thống tra cứu</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+            {% endif %}
+            <div class="flex items-center gap-2 bg-gray-50 rounded-full px-3 py-1.5">
+                <div class="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-cyan-400 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/>
+                    </svg>
+                </div>
+                <span class="text-sm font-medium text-gray-600">{{ user.name|default:user.username }}</span>
+            </div>
+            <form action="{% url 'patient_logout' %}" method="post" class="m-0">
+                {% csrf_token %}
+                <button type="submit" class="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition" title="Đăng xuất">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9"/>
+                    </svg>
+                </button>
+            </form>
+        </div>
+    </nav>
+
+    <!-- Sidebar Overlay (mobile) -->
+    <div id="sidebarOverlay" class="fixed inset-0 bg-black/30 z-30 hidden lg:hidden" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar fixed top-[52px] left-0 bottom-0 w-60 bg-white border-r border-gray-100 z-40 transform -translate-x-full lg:translate-x-0 transition-transform duration-200 overflow-y-auto">
+        <div class="px-4 pt-5 pb-3">
+            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Menu</p>
+            <nav class="flex flex-col gap-1">
+                <a href="{% url 'patient_my_results' %}" class="nav-item-link {% if tab == 'my_results' %}active{% endif %}">
+                    <svg class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6M9 8h6m4 14H5a2 2 0 01-2-2V4a2 2 0 012-2h10l6 6v12a2 2 0 01-2 2z"/></svg>
+                    Kết quả của tôi
+                </a>
+                <a href="{% url 'patient_dashboard' %}" class="nav-item-link {% if tab == 'lookup' %}active{% endif %}">
+                    <svg class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+                    Tra cứu kết quả
+                </a>
+            </nav>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="lg:ml-60 pt-[52px] min-h-screen">
+        <div class="p-5">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('-translate-x-full');
+            overlay.classList.toggle('hidden');
+        }
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
+
+

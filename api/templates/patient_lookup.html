@@ -1,0 +1,214 @@
+﻿{% extends "patient_base.html" %}
+{% block title %}Tra cứu kết quả{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+{% endblock %}
+{% block content %}
+
+<h3 class="page-title">Tra cứu kết quả</h3>
+
+<div style="background:#fff; border-radius:16px; padding:24px; border:1px solid #f1f5f9; box-shadow:0 1px 3px rgba(0,0,0,0.04); margin-bottom:20px;">
+    <form id="lookupForm" class="d-flex align-items-end gap-3 flex-wrap">
+        <div>
+            <label class="form-label" style="font-size:0.8rem; color:#64748b; margin-bottom:2px;">Cơ sở y tế</label>
+            <select class="form-select" id="facilitySelect" name="facility_id" style="min-width:240px;">
+                <option value="">Tất cả</option>
+                {% for f in facilities %}
+                <option value="{{ f.id }}">{{ f.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="form-label" style="font-size:0.8rem; color:#64748b; margin-bottom:2px;">Bệnh nhân</label>
+            <select class="form-select" id="patientSelect" name="patient_id" style="min-width:320px;">
+                <option value="">-- Chọn bệnh nhân --</option>
+                {% for p in patients %}
+                <option value="{{ p.id }}">{{ p.identifier }} — {{ p.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="form-label" style="font-size:0.8rem; color:#64748b; margin-bottom:2px;">Năm</label>
+            <select class="form-select" id="examYear" name="exam_year" style="min-width:140px;">
+                <option value="">Tất cả thời gian</option>
+                {% for y in years %}
+                <option value="{{ y }}">{{ y }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="form-label" style="font-size:0.8rem; color:#64748b; margin-bottom:2px;">Tháng</label>
+            <select class="form-select" id="examMonth" name="exam_month" style="min-width:140px;">
+                <option value="">Tất cả</option>
+                <option value="1">Tháng 1</option>
+                <option value="2">Tháng 2</option>
+                <option value="3">Tháng 3</option>
+                <option value="4">Tháng 4</option>
+                <option value="5">Tháng 5</option>
+                <option value="6">Tháng 6</option>
+                <option value="7">Tháng 7</option>
+                <option value="8">Tháng 8</option>
+                <option value="9">Tháng 9</option>
+                <option value="10">Tháng 10</option>
+                <option value="11">Tháng 11</option>
+                <option value="12">Tháng 12</option>
+            </select>
+        </div>
+        <div>
+            <button type="submit" class="btn-add" style="padding:9px 24px;">Tra cứu</button>
+        </div>
+    </form>
+</div>
+
+<div id="resultArea">
+    <div class="table-card">
+        <table id="lookupResultTable" class="table">
+            <thead>
+                <tr>
+                    <th>Thời gian khám</th>
+                    <th>Bệnh nhân</th>
+                    <th>Định danh</th>
+                    <th>Cơ sở</th>
+                    <th>Bác sĩ</th>
+                    <th>Trạng thái</th>
+                    <th>Kết quả tổng</th>
+                    <th>Xem</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+let lookupTable = null;
+
+function initTable() {
+    lookupTable = $('#lookupResultTable').DataTable({
+        searching: false,
+        lengthChange: true,
+        pageLength: 10,
+        language: {
+            emptyTable: "Không có dữ liệu.",
+            lengthMenu: "Hiển thị _MENU_",
+            info: "Hiển thị từ _START_ tới _END_ trong số _TOTAL_ bản ghi",
+            paginate: { previous: "«", next: "»" }
+        }
+    });
+}
+
+function loadPatientsByFacility() {
+    const facilityId = $('#facilitySelect').val();
+    $.get('/api/patient-lookup/patients/', { facility_id: facilityId }, function(resp){
+        const select = $('#patientSelect');
+        select.empty();
+        select.append('<option value="">-- Chọn bệnh nhân --</option>');
+        (resp.data || []).forEach(p => {
+            select.append(`<option value="${p.id}">${p.identifier} — ${p.name}</option>`);
+        });
+    });
+}
+
+function applyYearMonthRule() {
+    const yearVal = $('#examYear').val();
+    const isAllTime = !yearVal;
+    $('#examMonth').prop('disabled', isAllTime);
+    if (isAllTime) {
+        $('#examMonth').val('');
+    }
+}
+
+$('#facilitySelect').on('change', function(){
+    loadPatientsByFacility();
+});
+
+$('#examYear').on('change', function(){
+    applyYearMonthRule();
+});
+
+$('#lookupForm').on('submit', function(e){
+    e.preventDefault();
+    const params = {
+        facility_id: $('#facilitySelect').val(),
+        patient_id: $('#patientSelect').val(),
+        exam_year: $('#examYear').val(),
+        exam_month: $('#examMonth').val()
+    };
+
+    $.get('/api/patient-lookup/exams/', params, function(resp){
+        const rows = resp.data || [];
+        const tableRows = rows.map(r => {
+            const preview = r.overall_result && r.overall_result.length > 80
+                ? r.overall_result.substring(0, 80) + '...'
+                : (r.overall_result || '');
+            const query = $.param({
+                facility_id: $('#facilitySelect').val(),
+                patient_id: $('#patientSelect').val(),
+                exam_year: $('#examYear').val(),
+                exam_month: $('#examMonth').val()
+            });
+            return [
+                r.examination_time,
+                r.patient_name || '',
+                r.identifier || '',
+                r.facility_name || '',
+                r.doctor_name || '—',
+                r.status || '',
+                `<span style="max-width:260px; display:inline-block;">${preview || 'Chưa có kết quả tổng'}</span>`,
+                `<a class="btn-action btn-action-info" href="/lookup/results/${r.id}/?${query}">Xem</a>`
+            ];
+        });
+        lookupTable.clear().rows.add(tableRows).draw();
+    }).fail(function(){
+        alert('Có lỗi xảy ra. Vui lòng thử lại.');
+    });
+});
+
+$(document).ready(function(){
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('facility_id')) {
+        $('#facilitySelect').val(params.get('facility_id'));
+    }
+    if (params.has('exam_year')) {
+        $('#examYear').val(params.get('exam_year'));
+    }
+    if (params.has('exam_month')) {
+        $('#examMonth').val(params.get('exam_month'));
+    }
+    const now = new Date();
+    const currentYear = String(now.getFullYear());
+    if (!params.has('exam_year') && !$('#examYear').val() && $('#examYear option[value="' + currentYear + '"]').length) {
+        $('#examYear').val(currentYear);
+    }
+    applyYearMonthRule();
+    initTable();
+    loadPatientsByFacility();
+    const presetPatient = params.get('patient_id');
+    if (presetPatient) {
+        const trySetPatient = () => {
+            if ($('#patientSelect option[value="' + presetPatient + '"]').length) {
+                $('#patientSelect').val(presetPatient);
+                $('#lookupForm').trigger('submit');
+                return true;
+            }
+            return false;
+        };
+        if (!trySetPatient()) {
+            const interval = setInterval(() => {
+                if (trySetPatient()) {
+                    clearInterval(interval);
+                }
+            }, 100);
+        }
+    } else {
+        $('#lookupForm').trigger('submit');
+    }
+});
+</script>
+{% endblock %}

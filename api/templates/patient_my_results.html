@@ -1,0 +1,68 @@
+﻿{% extends "patient_base.html" %}
+{% block title %}Kết quả của tôi{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+{% endblock %}
+{% block content %}
+
+<h3 class="page-title">Kết quả của tôi</h3>
+
+{% if not patient %}
+    <div class="table-card" style="padding:40px; text-align:center; color:#94a3b8;">
+        <p style="font-size:0.9rem; margin:0;">Không tìm thấy hồ sơ bệnh nhân tương ứng với tài khoản đang đăng nhập.</p>
+    </div>
+{% elif examinations|length == 0 %}
+    <div class="table-card" style="padding:40px; text-align:center; color:#94a3b8;">
+        <p style="font-size:0.9rem; margin:0;">Chưa có phiếu khám nào.</p>
+    </div>
+{% else %}
+    <div class="table-card">
+        <table id="myResultsTable" class="table">
+            <thead>
+                <tr>
+                    <th>Thời gian khám</th>
+                    <th>Cơ sở</th>
+                    <th>Bác sĩ</th>
+                    <th>Trạng thái</th>
+                    <th>Kết quả tổng</th>
+                    <th>Xem</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for exam in examinations %}
+                <tr>
+                    <td>{{ exam.examination_date|date:"d/m/Y H:i" }}</td>
+                    <td>{{ exam.facility.name }}</td>
+                    <td>{{ exam.doctor.name|default:"—" }}</td>
+                    <td>{{ exam.get_status_display }}</td>
+                    <td style="max-width:280px;">{{ exam.overall_result|default:"Chưa có kết quả tổng" }}</td>
+                    <td>
+                        <a href="{% url 'patient_my_result_detail' exam.id %}" class="btn-action btn-action-info">Xem</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+$(document).ready(function () {
+    $('#myResultsTable').DataTable({
+        language: {
+            search: "Tìm kiếm:",
+            lengthMenu: "Chi tiết _MENU_",
+            info: "Hiển thị từ _START_ tới _END_ trong số _TOTAL_ bản ghi",
+            paginate: { previous: "«", next: "»" },
+            zeroRecords: "Không tìm thấy dữ liệu",
+        }
+    });
+});
+</script>
+{% endblock %}

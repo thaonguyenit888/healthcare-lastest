@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Báo cáo Chuẩn đoán{% endblock %}
+{% block content %}
+
+<h3 class="page-title">Báo cáo Thống kê Chuẩn đoán</h3>
+
+<div style="background:#fff; border-radius:12px; padding:16px 20px; border:1px solid #f1f5f9; margin-bottom:20px; display:flex; align-items:end; gap:16px; flex-wrap:wrap;">
+    <form method="get" class="d-flex align-items-end gap-3 flex-wrap" style="margin:0;">
+        <div>
+            <label for="start_month" class="form-label" style="font-size:0.8rem; color:#64748b; margin-bottom:2px;">Từ tháng</label>
+            <input type="month" class="form-control" id="start_month" name="start_month" value="{{ start_month }}" style="font-size:0.85rem; border-radius:10px;">
+        </div>
+        <div>
+            <label for="end_month" class="form-label" style="font-size:0.8rem; color:#64748b; margin-bottom:2px;">Đến tháng</label>
+            <input type="month" class="form-control" id="end_month" name="end_month" value="{{ end_month }}" style="font-size:0.85rem; border-radius:10px;">
+        </div>
+        <div>
+            <button type="submit" class="btn-add" style="padding:7px 20px;">Xem báo cáo</button>
+        </div>
+    </form>
+</div>
+
+{% if facility_stats %}
+<div class="table-card">
+<table class="table">
+    <thead>
+    <tr>
+        <th>Mã bệnh viện</th>
+        <th>Tên bệnh viện</th>
+        <th>Tổng số bệnh nhân</th>
+        <th>Tổng số dịch vụ</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for f in facility_stats %}
+        <tr>
+            <td><span style="font-weight:500;">{{ f.patient__created_by_facility__id }}</span></td>
+            <td>{{ f.patient__created_by_facility__name }}</td>
+            <td><span class="badge-role badge-role-admin">{{ f.total_patients }}</span></td>
+            <td><span class="badge-role badge-role-doctor">{{ f.total_service_types }}</span></td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% else %}
+<div style="text-align:center; padding:40px; color:#94a3b8;">Không có dữ liệu cho khoảng thời gian đã chọn.</div>
+{% endif %}
+
+{% endblock %}

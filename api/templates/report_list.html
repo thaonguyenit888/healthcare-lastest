@@ -1,0 +1,176 @@
+﻿{% extends "base.html" %}
+{% block title %}Báo cáo{% endblock %}
+{% block content %}
+
+<h3 class="page-title">Báo cáo</h3>
+
+{% include "report_subtabs.html" %}
+
+{% if subtab == 'month' or subtab == 'quarter' or subtab == 'year' %}
+<div style="background:#fff; border-radius:16px; padding:20px 24px; border:1px solid #f1f5f9; box-shadow:0 1px 3px rgba(0,0,0,0.04); margin-bottom:20px;">
+    <form method="get" class="d-flex align-items-end gap-3 flex-wrap">
+        <input type="hidden" name="tab" value="{{ subtab }}">
+        <div>
+            <label class="form-label" style="font-size:0.8rem; color:#64748b; margin-bottom:2px;">Cơ sở y tế</label>
+            <select class="form-select" name="facility_id" id="facilitySelect" style="min-width:240px;">
+                <option value="">Tất cả</option>
+                {% for f in facilities %}
+                <option value="{{ f.id }}" {% if selected_facility_id == f.id|stringformat:"s" %}selected{% endif %}>{{ f.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% if subtab != 'year' %}
+        <div>
+            <label class="form-label" style="font-size:0.8rem; color:#64748b; margin-bottom:2px;">Năm</label>
+            <select class="form-select" name="year" id="yearSelect" style="min-width:140px;">
+                {% if years|length == 0 %}
+                <option value="">--</option>
+                {% else %}
+                {% for y in years %}
+                <option value="{{ y }}" {% if selected_year == y|stringformat:"s" %}selected{% endif %}>{{ y }}</option>
+                {% endfor %}
+                {% endif %}
+            </select>
+        </div>
+        {% endif %}
+        <div>
+            <button type="submit" class="btn-add" style="padding:9px 24px;">Xem báo cáo</button>
+        </div>
+    </form>
+</div>
+
+<div class="table-card" style="padding:16px; margin-bottom:20px;">
+    <canvas id="monthlyChart" height="120"></canvas>
+</div>
+
+<div class="table-card">
+    <div style="overflow-x:auto;">
+    <table class="table" id="serviceMonthTable">
+        <thead>
+            <tr>
+                <th>Dịch vụ</th>
+                {% if subtab == 'month' %}
+                <th>Tháng 1</th>
+                <th>Tháng 2</th>
+                <th>Tháng 3</th>
+                <th>Tháng 4</th>
+                <th>Tháng 5</th>
+                <th>Tháng 6</th>
+                <th>Tháng 7</th>
+                <th>Tháng 8</th>
+                <th>Tháng 9</th>
+                <th>Tháng 10</th>
+                <th>Tháng 11</th>
+                <th>Tháng 12</th>
+                {% elif subtab == 'quarter' %}
+                <th>Quý 1</th>
+                <th>Quý 2</th>
+                <th>Quý 3</th>
+                <th>Quý 4</th>
+                {% else %}
+                {% for y in years %}
+                <th>{{ y }}</th>
+                {% endfor %}
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in service_rows %}
+            <tr>
+                <td>{{ row.name }}</td>
+                {% if subtab == 'month' %}
+                    {% for v in row.months %}
+                    <td>{{ v }}</td>
+                    {% endfor %}
+                {% elif subtab == 'quarter' %}
+                    {% for v in row.quarters %}
+                    <td>{{ v }}</td>
+                    {% endfor %}
+                {% else %}
+                    {% for v in row.years %}
+                    <td>{{ v }}</td>
+                    {% endfor %}
+                {% endif %}
+            </tr>
+            {% endfor %}
+            {% if service_rows|length == 0 %}
+            <tr>
+                {% if subtab == 'month' %}
+                <td colspan="13" style="text-align:center; color:#94a3b8; font-size:0.9rem;">Không có dữ liệu.</td>
+                {% elif subtab == 'quarter' %}
+                <td colspan="5" style="text-align:center; color:#94a3b8; font-size:0.9rem;">Không có dữ liệu.</td>
+                {% else %}
+                <td colspan="{{ years|length|add:'1' }}" style="text-align:center; color:#94a3b8; font-size:0.9rem;">Không có dữ liệu.</td>
+                {% endif %}
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function(){
+    const labels = {{ chart_labels_json|default:'[]'|safe }};
+    const values = {{ chart_values_json|default:'[]'|safe }};
+    const amounts = {{ chart_amounts_json|default:'[]'|safe }};
+    const canvas = document.getElementById('monthlyChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Số lượng dịch vụ đã khám',
+                    data: values,
+                    borderColor: '#0ea5e9',
+                    backgroundColor: 'rgba(14,165,233,0.15)',
+                    tension: 0.3,
+                    fill: true,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#0ea5e9',
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Tổng tiền (VND)',
+                    data: amounts,
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16,185,129,0.12)',
+                    tension: 0.3,
+                    fill: true,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#10b981',
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: true }
+            },
+            scales: {
+                y: { beginAtZero: true, ticks: { precision: 0 } },
+                y1: {
+                    beginAtZero: true,
+                    position: 'right',
+                    grid: { drawOnChartArea: false },
+                    ticks: {
+                        callback: function(value) {
+                            return value.toLocaleString('vi-VN');
+                        }
+                    }
+                }
+            }
+        }
+    });
+})();
+</script>
+{% endblock %}

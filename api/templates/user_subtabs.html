@@ -1,0 +1,18 @@
+<!-- Subtabs for User Management -->
+<div class="d-flex align-items-center gap-2 mb-4" style="border-bottom: 2px solid #e2e8f0; padding-bottom: 0;">
+    <a href="{% url 'user_list' %}"
+       class="px-3 py-2 text-sm font-medium text-decoration-none rounded-top"
+       style="{% if subtab == 'users' %}background:#0ea5e9; color:#fff; border-bottom:2px solid #0ea5e9; margin-bottom:-2px;{% else %}color:#64748b;{% endif %}">
+        Người dùng
+    </a>
+    <a href="{% url 'role_list' %}"
+       class="px-3 py-2 text-sm font-medium text-decoration-none rounded-top"
+       style="{% if subtab == 'roles' %}background:#0ea5e9; color:#fff; border-bottom:2px solid #0ea5e9; margin-bottom:-2px;{% else %}color:#64748b;{% endif %}">
+        Vai trò
+    </a>
+    <a href="{% url 'permission_list' %}"
+       class="px-3 py-2 text-sm font-medium text-decoration-none rounded-top"
+       style="{% if subtab == 'permissions' %}background:#0ea5e9; color:#fff; border-bottom:2px solid #0ea5e9; margin-bottom:-2px;{% else %}color:#64748b;{% endif %}">
+        Phân quyền
+    </a>
+</div>

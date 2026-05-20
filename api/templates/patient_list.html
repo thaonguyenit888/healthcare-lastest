@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Danh sách Bệnh nhân{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+
+<h3 class="page-title">Danh sách Bệnh nhân</h3>
+
+<div class="table-toolbar">
+    <div></div>
+    <button class="btn-add" onclick="openCreateForm()">+ Thêm Bệnh nhân</button>
+</div>
+
+<div class="table-card">
+<table id="patientTable" class="table">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Loại định danh</th>
+      <th>Định danh</th>
+      <th>Tên</th>
+      <th>Liên hệ</th>
+      <th>Giới tính</th>
+      <th>Cơ sở tạo</th>
+      <th>Thao tác</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in patients %}
+      <tr data-id="{{ p.id }}">
+        <td><span style="font-weight:500;">{{ p.id }}</span></td>
+        <td><span class="badge-role badge-role-default">{{ p.get_identifier_type_display }}</span></td>
+        <td>{{ p.identifier }}</td>
+        <td>{{ p.name }}</td>
+        <td>{{ p.contact_info }}</td>
+        <td>{{ p.get_gender_display }}</td>
+        <td>{{ p.created_by_facility.name|default:"" }}</td>
+        <td>
+          <button class="btn-action btn-action-edit" onclick="openEditForm({{ p.id }})">Sửa</button>
+          <button class="btn-action btn-action-delete" onclick="deletePatient({{ p.id }})">Xóa</button>
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="patientModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <form id="patientForm" enctype="multipart/form-data">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Thông tin Bệnh nhân</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="patientId">
+          <input type="hidden" id="delete_documents" name="delete_documents">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Loại định danh</label>
+              <select class="form-select" id="identifier_type" name="identifier_type" required>
+                <option value="insurance">Số BHYT</option>
+                <option value="national_id">CMND/CCCD</option>
+                <option value="phone">Số điện thoại</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Định danh</label>
+              <input type="text" class="form-control" id="identifier" name="identifier" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Tên</label>
+              <input type="text" class="form-control" id="name" name="name" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Liên hệ</label>
+              <input type="text" class="form-control" id="contact_info" name="contact_info">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Giới tính</label>
+              <select class="form-select" id="gender" name="gender" required>
+                <option value="male">Nam</option>
+                <option value="female">Nữ</option>
+                <option value="other">Khác</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Cơ sở y tế</label>
+              <select class="form-select" id="patient-facility" name="facility_id">
+                <option value="">-- Chọn --</option>
+                {% for f in facilities %}
+                  <option value="{{ f.id }}">{{ f.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Tài liệu (có thể chọn nhiều)</label>
+              <input type="file" class="form-control" id="documents" name="documents" multiple>
+            </div>
+            <div class="col-12 mt-3">
+              <label class="form-label">Tài liệu đã upload:</label>
+              <ul id="patient-documents-list" style="max-height:150px; overflow-y:auto; border: 1px solid #e2e8f0; padding: 10px; border-radius: 10px;"></ul>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn-add" style="margin:0;">Lưu</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="border-radius:10px; font-size:0.825rem;">Hủy</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+    $('#patientTable').DataTable({
+        language: {
+            search: "Tìm kiếm:",
+            lengthMenu: "Chi tiết _MENU_",
+            info: "Hiển thị từ _START_ tới _END_ trong số _TOTAL_ bản ghi",
+            paginate: { previous: "«", next: "»" },
+            zeroRecords: "Không tìm thấy dữ liệu",
+        }
+    });
+
+    function openCreateForm() {
+        $('#patientForm')[0].reset();
+        $('#patientId').val('');
+        $('#delete_documents').val('');
+        $('#patient-documents-list').empty().append('<li style="color:#94a3b8;">Chưa có tài liệu đính kèm</li>');
+        $('#patientModal').modal('show');
+    }
+
+    function openEditForm(id) {
+        $.get(`/api/patients/${id}/`, function (data) {
+            $('#patientForm')[0].reset();
+            $('#delete_documents').val('');
+            $('#patient-documents-list').empty();
+            $('#patientId').val(data.id);
+            $('#identifier_type').val(data.identifier_type);
+            $('#identifier').val(data.identifier);
+            $('#name').val(data.name);
+            $('#contact_info').val(data.contact_info);
+            $('#gender').val(data.gender);
+            $('#patient-facility').val(data.created_by_facility);
+
+            if (data.documents && data.documents.length > 0) {
+                data.documents.forEach(doc => {
+                    const fileLink = `<a href="${doc.file_url}" target="_blank">${doc.file_name}</a>`;
+                    const deleteBtn = `<button type="button" class="btn-action btn-action-delete ms-2" onclick="markDocumentForDeletion(${doc.id}, this)">X</button>`;
+                    $('#patient-documents-list').append(`<li data-doc-id="${doc.id}">${fileLink} ${deleteBtn}</li>`);
+                });
+            } else {
+                $('#patient-documents-list').append('<li style="color:#94a3b8;">Chưa có tài liệu đính kèm</li>');
+            }
+            $('#patientModal').modal('show');
+        });
+    }
+
+    function markDocumentForDeletion(docId, buttonElement) {
+        let deleteDocs = $('#delete_documents').val().split(',').filter(Boolean);
+        if (!deleteDocs.includes(docId.toString())) {
+            deleteDocs.push(docId);
+            $('#delete_documents').val(deleteDocs.join(','));
+        }
+        $(buttonElement).closest('li').remove();
+    }
+
+    $('#patientForm').on('submit', function (e) {
+        e.preventDefault();
+        const id = $('#patientId').val();
+        const url = id ? `/api/patients/update/${id}/` : '/api/patients/create/';
+        const formData = new FormData(this);
+        $.ajax({
+            url, method: 'POST', data: formData, processData: false, contentType: false,
+            success: function () { location.reload(); },
+            error: function (xhr) { alert('Lỗi: ' + xhr.responseText); }
+        });
+    });
+
+    function deletePatient(id) {
+        confirmDelete('Bạn có chắc muốn xóa bệnh nhân này?', function () {
+            $.post(`/api/patients/delete/${id}/`, function () { location.reload(); })
+            .fail(function () { alert('Xóa thất bại'); });
+        });
+    }
+</script>
+
+{% endblock %}
