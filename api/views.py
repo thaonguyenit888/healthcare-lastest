@@ -15,7 +15,7 @@ from api.models import (
 from django.http import HttpResponse, JsonResponse, HttpResponseBadRequest
 from django.contrib.auth.hashers import make_password
 from django.views.decorators.http import require_GET
-from django.db.models import Count, Sum
+from django.db.models import Count, Exists, OuterRef, Q, Sum
 from django.db.models.functions import ExtractMonth, ExtractYear
 from django.utils.dateparse import parse_date
 
@@ -24,6 +24,41 @@ from django.contrib.auth import authenticate, login, logout as auth_logout
 from datetime import datetime
 
 import json
+
+
+def accessible_examinations_for(user, queryset=None):
+    if queryset is None:
+        queryset = MedicalExamination.objects.all()
+
+    if getattr(user, 'role_code', None) == 'admin':
+        return queryset
+
+    if getattr(user, 'role_code', None) == 'doctor':
+        access_filter = Q(consults__doctor=user)
+        if user.facility_id:
+            access_filter |= Q(facility_id=user.facility_id)
+
+        allowed_ids = (
+            MedicalExamination.objects
+            .filter(access_filter)
+            .values('pk')
+            .distinct()
+        )
+        return queryset.filter(pk__in=allowed_ids)
+
+    return queryset.none()
+
+
+def examination_not_found_response():
+    return JsonResponse({'error': 'Không tìm thấy phiếu khám'}, status=404)
+
+
+def pending_consult_filter_for(user):
+    return ExaminationConsult.objects.filter(
+        Q(result__isnull=True) | Q(result=''),
+        examination=OuterRef('pk'),
+        doctor=user,
+    )
 
 
 @admin_required
@@ -268,13 +303,25 @@ def patient_list(request):
 
 @permission_required('examination.view')
 def examination_list(request):
-    examinations = MedicalExamination.objects.select_related(
+    examinations = accessible_examinations_for(request.user, MedicalExamination.objects.select_related(
         'patient', 'facility', 'doctor'
-    ).prefetch_related('examination_services__service').annotate(
+    )).prefetch_related('examination_services__service').annotate(
         total_price=Sum('examination_services__price')
     ).order_by('-examination_date')
+    if request.user.role_code == 'doctor':
+        examinations = examinations.annotate(
+            has_pending_consult=Exists(pending_consult_filter_for(request.user))
+        )
+
     patients = Patient.objects.all()
     facilities = MedicalFacility.objects.prefetch_related('services').filter(status='active')
+    if request.user.role_code == 'doctor':
+        accessible_facility_ids = accessible_examinations_for(request.user).values_list('facility_id', flat=True)
+        facility_filter = Q(pk__in=accessible_facility_ids)
+        if request.user.facility_id:
+            facility_filter |= Q(pk=request.user.facility_id)
+        facilities = facilities.filter(facility_filter).distinct()
+
     doctors = User.objects.filter(role__code='doctor')
     return render(request, 'examination_list.html', {
         'examinations': examinations,
@@ -288,18 +335,30 @@ def examination_list(request):
 
 @permission_required('examination.view')
 def examination_detail(request, pk):
-    exam = MedicalExamination.objects.select_related('patient', 'facility', 'doctor').get(pk=pk)
+    try:
+        exam = accessible_examinations_for(
+            request.user,
+            MedicalExamination.objects.select_related('patient', 'facility', 'doctor')
+        ).get(pk=pk)
+    except MedicalExamination.DoesNotExist:
+        return examination_not_found_response()
+
     services = ExaminationService.objects.filter(examination=exam).select_related(
         'service', 'assigned_doctor'
     ).prefetch_related('documents')
     overall_docs = ExaminationDocument.objects.filter(examination=exam)
     consults = ExaminationConsult.objects.filter(examination=exam).select_related('doctor')
+    has_pending_consult = (
+        request.user.role_code == 'doctor'
+        and consults.filter(doctor=request.user).filter(Q(result__isnull=True) | Q(result='')).exists()
+    )
     doctors = User.objects.filter(role__code='doctor')
     return render(request, 'examination_detail.html', {
         'examination': exam,
         'services': services,
         'overall_docs': overall_docs,
         'consults': consults,
+        'has_pending_consult': has_pending_consult,
         'doctors': doctors,
         'tab': 'examinations',
     })
@@ -309,7 +368,10 @@ def examination_detail(request, pk):
 @permission_required('examination.view')
 def get_examination(request, pk):
     try:
-        exam = MedicalExamination.objects.select_related('patient', 'facility', 'doctor').get(pk=pk)
+        exam = accessible_examinations_for(
+            request.user,
+            MedicalExamination.objects.select_related('patient', 'facility', 'doctor')
+        ).get(pk=pk)
         services = ExaminationService.objects.filter(examination=exam).select_related('service', 'assigned_doctor')
         exam_docs = ExaminationDocument.objects.filter(examination=exam)
 
@@ -361,6 +423,9 @@ def create_examination(request):
         try:
             patient_id = request.POST['patient_id']
             facility_id = request.POST['facility_id']
+            if request.user.role_code == 'doctor' and str(request.user.facility_id or '') != str(facility_id):
+                return JsonResponse({'error': 'Không được phép tạo phiếu khám ngoài cơ sở trực thuộc'}, status=403)
+
             doctor_id = request.POST.get('doctor_id')
             examination_date = request.POST['examination_date']
             status = request.POST.get('status', 'awaiting_payment')
@@ -427,7 +492,10 @@ def create_examination(request):
 def update_examination(request, pk):
     if request.method == 'POST':
         try:
-            exam = MedicalExamination.objects.get(pk=pk)
+            exam = accessible_examinations_for(request.user).get(pk=pk)
+            if request.user.role_code == 'doctor' and str(exam.facility_id) != str(request.POST['facility_id']):
+                return JsonResponse({'error': 'Không được phép chuyển phiếu khám sang cơ sở khác'}, status=403)
+
             exam.patient_id = request.POST['patient_id']
             exam.facility_id = request.POST['facility_id']
             doctor_id = request.POST.get('doctor_id')
@@ -506,7 +574,7 @@ def update_examination(request, pk):
 def delete_examination(request, pk):
     if request.method == 'POST':
         try:
-            exam = MedicalExamination.objects.get(pk=pk)
+            exam = accessible_examinations_for(request.user).get(pk=pk)
             exam.delete()
             return JsonResponse({'message': 'Xóa phiếu khám thành công'})
         except MedicalExamination.DoesNotExist:
@@ -532,7 +600,10 @@ def update_examination_service(request, pk):
     """Update a single examination service (result, doctor, files, etc.)"""
     if request.method == 'POST':
         try:
-            svc = ExaminationService.objects.get(pk=pk)
+            svc = ExaminationService.objects.select_related('examination').get(pk=pk)
+            if not accessible_examinations_for(request.user).filter(pk=svc.examination_id).exists():
+                return examination_not_found_response()
+
             svc.assigned_doctor_id = request.POST.get('assigned_doctor_id') or None
             service_time = request.POST.get('service_time')
             svc.service_time = service_time if service_time else None
@@ -570,7 +641,7 @@ def update_examination_overall(request, pk):
     """Update overall result + upload general documents"""
     if request.method == 'POST':
         try:
-            exam = MedicalExamination.objects.get(pk=pk)
+            exam = accessible_examinations_for(request.user).get(pk=pk)
             exam.overall_result = request.POST.get('overall_result', '')
             exam.save()
 
@@ -595,7 +666,7 @@ def update_examination_status(request, pk):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            exam = MedicalExamination.objects.get(pk=pk)
+            exam = accessible_examinations_for(request.user).get(pk=pk)
             exam.status = data['status']
             exam.save()
             return JsonResponse({'message': 'Cập nhật trạng thái thành công'})
@@ -612,7 +683,10 @@ def delete_examination_doc(request, pk):
     """Delete an examination document"""
     if request.method == 'POST':
         try:
-            doc = ExaminationDocument.objects.get(pk=pk)
+            doc = ExaminationDocument.objects.select_related('examination').get(pk=pk)
+            if not accessible_examinations_for(request.user).filter(pk=doc.examination_id).exists():
+                return examination_not_found_response()
+
             doc.delete()
             return JsonResponse({'message': 'Đã xóa'})
         except ExaminationDocument.DoesNotExist:
@@ -629,9 +703,12 @@ def update_examination_consult(request, pk):
     """
     if request.method == 'POST':
         try:
-            consult = ExaminationConsult.objects.select_related('doctor').get(pk=pk)
+            consult = ExaminationConsult.objects.select_related('doctor', 'examination').get(pk=pk)
             user = request.user
-            if user.role_code != 'admin' and consult.doctor_id != user.id:
+            if not accessible_examinations_for(user).filter(pk=consult.examination_id).exists():
+                return examination_not_found_response()
+
+            if user.role_code != 'admin' and user.facility_id != consult.examination.facility_id and consult.doctor_id != user.id:
                 return JsonResponse({'error': 'Không được phép sửa kết quả của bác sĩ khác'}, status=403)
 
             consult.result = request.POST.get('result', '')
