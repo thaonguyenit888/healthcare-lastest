@@ -18,7 +18,9 @@
         <div class="col-md-3"><strong>Cơ sở:</strong> {{ examination.facility.name }}</div>
         <div class="col-md-3"><strong>BS phụ trách:</strong> {{ examination.doctor.name|default:"—" }}</div>
         <div class="col-md-3"><strong>Trạng thái:</strong>
-            {% if examination.status == 'awaiting_payment' %}
+            {% if has_pending_consult %}
+                <span class="badge-role" style="background:#fef3c7; color:#d97706;">Chờ hội chẩn</span>
+            {% elif examination.status == 'awaiting_payment' %}
                 <span class="badge-role" style="background:#f3e8ff; color:#9333ea;">Chờ thanh toán</span>
             {% elif examination.status == 'pending' %}
                 <span class="badge-role" style="background:#fef3c7; color:#d97706;">Chờ khám</span>

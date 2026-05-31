@@ -48,7 +48,9 @@
                     {% endif %}
                 </td>
                 <td>
-                    {% if exam.status == 'awaiting_payment' %}
+                    {% if exam.has_pending_consult %}
+                        <span class="badge-role" style="background:#fef3c7; color:#d97706;">Chờ hội chẩn</span>
+                    {% elif exam.status == 'awaiting_payment' %}
                         <span class="badge-role" style="background:#f3e8ff; color:#9333ea;">Chờ thanh toán</span>
                     {% elif exam.status == 'pending' %}
                         <span class="badge-role" style="background:#fef3c7; color:#d97706;">Chờ khám</span>
