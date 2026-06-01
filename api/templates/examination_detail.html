@@ -31,7 +31,9 @@
             {% elif examination.status == 'cancelled' %}
                 <span class="badge-role" style="background:#fee2e2; color:#dc2626;">Đã hủy</span>
             {% endif %}
+            {% if can_edit_results %}
             <button class="btn-action btn-action-edit" style="margin-left:4px; padding:2px 6px; font-size:0.7rem; line-height:1;" data-bs-toggle="modal" data-bs-target="#statusModal"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -40,7 +42,9 @@
 <div style="background:#fff; border-radius:16px; padding:20px 24px; border:1px solid #f1f5f9; box-shadow:0 1px 3px rgba(0,0,0,0.04); margin-bottom:20px;">
     <div class="d-flex align-items-center justify-content-between mb-2">
         <h6 style="font-weight:700; color:#1e293b; margin:0; font-size:0.9rem;">Kết quả khám tổng</h6>
+        {% if can_edit_results %}
         <button class="btn-action btn-action-edit" onclick="toggleOverallEdit()">Sửa</button>
+        {% endif %}
     </div>
     <div id="overallDisplay">
         <p style="font-size:0.85rem; color:#475569; margin:0;">{{ examination.overall_result|default:"Chưa có kết quả tổng" }}</p>
@@ -58,6 +62,7 @@
         </div>
         {% endif %}
     </div>
+    {% if can_edit_results %}
     <div id="overallEditForm" style="display:none;">
         <textarea id="overallResultInput" class="form-control mb-2" rows="3" style="font-size:0.85rem; border-radius:10px;">{{ examination.overall_result|default:"" }}</textarea>
         <div class="d-flex gap-2">
@@ -79,6 +84,7 @@
             <button class="btn btn-secondary" style="padding:5px 16px; font-size:0.8rem; border-radius:10px;" onclick="toggleOverallEdit()">Hủy</button>
         </div>
     </div>
+    {% endif %}
 </div>
 
 <!-- Consultation results -->
@@ -131,7 +137,9 @@
             {% elif svc.status == 'completed' %}
                 <span class="badge-role" style="background:#dcfce7; color:#16a34a;">Hoàn thành</span>
             {% endif %}
+            {% if can_edit_results %}
             <button class="btn-action btn-action-edit" onclick="toggleServiceEdit({{ svc.id }})">Cập nhật</button>
+            {% endif %}
         </div>
     </div>
 
@@ -159,6 +167,7 @@
     </div>
 
     <!-- Edit form (hidden) -->
+    {% if can_edit_results %}
     <div id="svcEdit_{{ svc.id }}" style="display:none;">
         <div class="row mb-2 g-2">
             <div class="col-md-3">
@@ -214,6 +223,7 @@
             <button class="btn btn-secondary" style="padding:5px 16px; font-size:0.8rem; border-radius:10px;" onclick="toggleServiceEdit({{ svc.id }})">Hủy</button>
         </div>
     </div>
+    {% endif %}
 </div>
 {% empty %}
 <div class="table-card" style="padding:40px; text-align:center; color:#94a3b8;">
@@ -222,6 +232,7 @@
 {% endfor %}
 
 <!-- Status Modal -->
+{% if can_edit_results %}
 <div class="modal fade" id="statusModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content">
@@ -245,6 +256,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
 <script>
@@ -307,7 +319,7 @@ function saveConsult(consultId) {
         data: formData,
         processData: false,
         contentType: false,
-        success: function() { alert('Đã lưu kết quả hội chẩn'); },
+        success: function() { location.reload(); },
         error: function(xhr) { alert(xhr.responseJSON?.error || 'Có lỗi xảy ra'); }
     });
 }

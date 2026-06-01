@@ -66,8 +66,10 @@
                     {% if exam.status != 'awaiting_payment' and exam.status != 'cancelled' %}
                         <a href="/examinations/{{ exam.id }}/" class="btn-action btn-action-info">Kết quả khám</a>
                     {% endif %}
+                    {% if request.user.role_code == 'admin' or exam.doctor_id == request.user.id %}
                     <button class="btn-action btn-action-edit" onclick="openEditExam({{ exam.id }})">Sửa</button>
                     <button class="btn-action btn-action-delete" onclick="confirmDelete('Xóa phiếu khám của {{ exam.patient.name }}?', () => deleteExam({{ exam.id }}))">Xóa</button>
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}
@@ -90,50 +92,51 @@
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label" style="font-size:0.8rem; color:#64748b;">Bệnh nhân <span style="color:red;">*</span></label>
-                            <select id="examPatient" class="form-select" required style="font-size:0.85rem; border-radius:10px;">
-                                <option value="">-- Chọn bệnh nhân --</option>
+                            <select id="examPatient" class="form-select" required style="font-size:0.85rem; border-radius:10px; width:100%;">
+                                <option value=""></option>
                                 {% for p in patients %}
-                                <option value="{{ p.id }}">{{ p.name }} ({{ p.identifier }})</option>
+                                <option value="{{ p.id }}" data-search="{{ p.identifier|lower }} {{ p.name|lower }}">{{ p.name }} ({{ p.identifier }})</option>
                                 {% endfor %}
                             </select>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label" style="font-size:0.8rem; color:#64748b;">Cơ sở y tế <span style="color:red;">*</span></label>
-                            <select id="examFacility" class="form-select" required style="font-size:0.85rem; border-radius:10px;" onchange="loadFacilityServices()">
+                            <select id="examFacility" class="form-select" required style="font-size:0.85rem; border-radius:10px;" onchange="loadFacilityServices()" data-user-role="{{ request.user.role_code }}" data-user-facility-id="{{ request.user.facility.id|default:'' }}">
                                 <option value="">-- Chọn cơ sở --</option>
                                 {% for f in facilities %}
+                                {% if request.user.role_code == 'admin' or f.id == request.user.facility.id %}
                                 <option value="{{ f.id }}">{{ f.name }}</option>
+                                {% endif %}
                                 {% endfor %}
                             </select>
                         </div>
                     </div>
 
                     <div class="row mb-3">
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <label class="form-label" style="font-size:0.8rem; color:#64748b;">Bác sĩ phụ trách chính</label>
-                            <select id="examDoctor" class="form-select" style="font-size:0.85rem; border-radius:10px;">
-                                <option value="">-- Chọn bác sĩ --</option>
+                            <select id="examDoctor" class="form-select" style="font-size:0.85rem; border-radius:10px; width:100%;">
+                                <option value=""></option>
                                 {% for d in doctors %}
-                                <option value="{{ d.id }}">{{ d.name }}</option>
+                                <option value="{{ d.id }}" data-search="{{ d.name|lower }}">{{ d.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <label class="form-label" style="font-size:0.8rem; color:#64748b;">Bác sĩ hội chẩn</label>
-                            <select id="examConsultDoctors" class="form-select" multiple style="font-size:0.85rem; border-radius:10px; height:80px;">
+                            <select id="examConsultDoctors" class="form-select" multiple style="font-size:0.85rem; border-radius:10px; width:100%;">
                                 {% for d in doctors %}
-                                <option value="{{ d.id }}">{{ d.name }}</option>
+                                <option value="{{ d.id }}" data-search="{{ d.name|lower }}">{{ d.name }}</option>
                                 {% endfor %}
                             </select>
-                            <small style="font-size:0.7rem; color:#94a3b8;">Giữ Ctrl/Cmd để chọn nhiều bác sĩ</small>
                         </div>
+                    </div>
+
+                    <div class="row mb-3">
                         <div class="col-md-4">
                             <label class="form-label" style="font-size:0.8rem; color:#64748b;">Ngày khám <span style="color:red;">*</span></label>
                             <input type="datetime-local" id="examDate" class="form-control" required style="font-size:0.85rem; border-radius:10px;">
                         </div>
-                    </div>
-
-                    <div class="row mb-3">
                         <div class="col-md-4">
                             <label class="form-label" style="font-size:0.8rem; color:#64748b;">Trạng thái</label>
                             <select id="examStatus" class="form-select" style="font-size:0.85rem; border-radius:10px;">
@@ -182,9 +185,12 @@
 </div>
 
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css">
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 <script>
 $(document).ready(function() {
@@ -193,19 +199,67 @@ $(document).ready(function() {
         order: [[5, 'desc']],
         pageLength: 10,
     });
+
+    initExamSelect2('#examPatient', 'Tìm theo mã hoặc tên bệnh nhân', 'Không tìm thấy bệnh nhân');
+    initExamSelect2('#examDoctor', 'Tìm theo tên bác sĩ', 'Không tìm thấy bác sĩ');
+    initExamSelect2('#examConsultDoctors', 'Tìm theo tên bác sĩ hội chẩn', 'Không tìm thấy bác sĩ');
 });
 
 let facilityServices = [];
 let selectedServiceIds = [];
 let selectedConsultDoctorIds = [];
 
+function normalizeSearchText(value) {
+    return (value || '').toString().trim().toLowerCase();
+}
+
+function initExamSelect2(selector, placeholder, noResultsText) {
+    $(selector).select2({
+        theme: 'bootstrap-5',
+        dropdownParent: $('#examModal'),
+        placeholder: placeholder,
+        allowClear: true,
+        width: '100%',
+        language: {
+            noResults: function() { return noResultsText; },
+            searching: function() { return 'Đang tìm...'; }
+        },
+        matcher: function(params, data) {
+            const term = normalizeSearchText(params.term);
+            if (!term) {
+                return data;
+            }
+            const option = data.element;
+            const searchText = option ? (option.dataset.search || data.text) : data.text;
+            return normalizeSearchText(searchText).includes(term) ? data : null;
+        }
+    });
+}
+
+function resetExamFilters() {
+    $('#examPatient').val(null).trigger('change');
+    $('#examDoctor').val(null).trigger('change');
+    $('#examConsultDoctors').val(null).trigger('change');
+}
+
+function applyDoctorFacilityDefault() {
+    const facilitySelect = document.getElementById('examFacility');
+    if (facilitySelect.dataset.userRole === 'doctor' && facilitySelect.dataset.userFacilityId) {
+        facilitySelect.value = facilitySelect.dataset.userFacilityId;
+        loadFacilityServices();
+    }
+}
+
 function openCreateExam() {
     document.getElementById('examModalTitle').textContent = 'Tạo phiếu khám';
     document.getElementById('examId').value = '';
     document.getElementById('examForm').reset();
+    resetExamFilters();
     document.getElementById('servicesCheckboxes').innerHTML = '<p style="color:#94a3b8; font-size:0.8rem; text-align:center; margin:8px 0;">Chọn cơ sở y tế để hiển thị dịch vụ</p>';
     facilityServices = [];
     selectedServiceIds = [];
+    selectedConsultDoctorIds = [];
+    applyDoctorFacilityDefault();
 }
 
 function openEditExam(id) {
@@ -214,9 +268,9 @@ function openEditExam(id) {
 
     $.get(`/api/examinations/${id}/`, function(data) {
         document.getElementById('examId').value = data.id;
-        document.getElementById('examPatient').value = data.patient_id;
+        $('#examPatient').val(data.patient_id).trigger('change');
         document.getElementById('examFacility').value = data.facility_id;
-        document.getElementById('examDoctor').value = data.doctor_id;
+        $('#examDoctor').val(data.doctor_id || null).trigger('change');
         document.getElementById('examDate').value = data.examination_date;
         document.getElementById('examStatus').value = data.status;
         document.getElementById('examNotes').value = data.notes;
@@ -224,11 +278,7 @@ function openEditExam(id) {
         selectedServiceIds = data.services.map(s => s.service_id);
         selectedConsultDoctorIds = data.consult_doctors || [];
 
-        // set consult doctors multi-select
-        const consultSelect = document.getElementById('examConsultDoctors');
-        Array.from(consultSelect.options).forEach(opt => {
-            opt.selected = selectedConsultDoctorIds.includes(parseInt(opt.value));
-        });
+        $('#examConsultDoctors').val(selectedConsultDoctorIds.map(String)).trigger('change');
 
         loadFacilityServices();
 
@@ -339,6 +389,7 @@ function showPriceDetail(examId) {
         body.innerHTML = html;
     });
 }
+
 </script>
 
 {% endblock %}
