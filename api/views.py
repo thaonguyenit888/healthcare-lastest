@@ -61,6 +61,12 @@ def pending_consult_filter_for(user):
     )
 
 
+def can_edit_examination_results(user, examination):
+    if getattr(user, 'role_code', None) == 'admin':
+        return True
+    return getattr(user, 'role_code', None) == 'doctor' and examination.doctor_id == user.id
+
+
 @admin_required
 def facility_list(request):
     facilities = MedicalFacility.objects.prefetch_related('services').all()
@@ -292,8 +298,12 @@ def permission_list(request):
 
 @permission_required('patient.view')
 def patient_list(request):
-    patients = Patient.objects.all()
-    facilities = MedicalFacility.objects.all()
+    if request.user.role_code == 'admin':
+        patients = Patient.objects.all()
+        facilities = MedicalFacility.objects.all()
+    else:
+        patients = Patient.objects.filter(created_by_facility=request.user.facility)
+        facilities = MedicalFacility.objects.filter(id=request.user.facility_id)
     return render(request, 'patient_list.html', {
         'patients': patients,
         'tab': 'patients',
@@ -352,6 +362,7 @@ def examination_detail(request, pk):
         request.user.role_code == 'doctor'
         and consults.filter(doctor=request.user).filter(Q(result__isnull=True) | Q(result='')).exists()
     )
+    can_edit_results = can_edit_examination_results(request.user, exam)
     doctors = User.objects.filter(role__code='doctor')
     return render(request, 'examination_detail.html', {
         'examination': exam,
@@ -359,6 +370,7 @@ def examination_detail(request, pk):
         'overall_docs': overall_docs,
         'consults': consults,
         'has_pending_consult': has_pending_consult,
+        'can_edit_results': can_edit_results,
         'doctors': doctors,
         'tab': 'examinations',
     })
@@ -603,6 +615,8 @@ def update_examination_service(request, pk):
             svc = ExaminationService.objects.select_related('examination').get(pk=pk)
             if not accessible_examinations_for(request.user).filter(pk=svc.examination_id).exists():
                 return examination_not_found_response()
+            if not can_edit_examination_results(request.user, svc.examination):
+                return JsonResponse({'error': 'Không được phép cập nhật dịch vụ khám của phiếu này'}, status=403)
 
             svc.assigned_doctor_id = request.POST.get('assigned_doctor_id') or None
             service_time = request.POST.get('service_time')
@@ -642,6 +656,8 @@ def update_examination_overall(request, pk):
     if request.method == 'POST':
         try:
             exam = accessible_examinations_for(request.user).get(pk=pk)
+            if not can_edit_examination_results(request.user, exam):
+                return JsonResponse({'error': 'Không được phép sửa kết quả khám tổng'}, status=403)
             exam.overall_result = request.POST.get('overall_result', '')
             exam.save()
 
@@ -667,6 +683,8 @@ def update_examination_status(request, pk):
         try:
             data = json.loads(request.body)
             exam = accessible_examinations_for(request.user).get(pk=pk)
+            if not can_edit_examination_results(request.user, exam):
+                return JsonResponse({'error': 'Không được phép cập nhật trạng thái phiếu khám'}, status=403)
             exam.status = data['status']
             exam.save()
             return JsonResponse({'message': 'Cập nhật trạng thái thành công'})
@@ -686,6 +704,8 @@ def delete_examination_doc(request, pk):
             doc = ExaminationDocument.objects.select_related('examination').get(pk=pk)
             if not accessible_examinations_for(request.user).filter(pk=doc.examination_id).exists():
                 return examination_not_found_response()
+            if not can_edit_examination_results(request.user, doc.examination):
+                return JsonResponse({'error': 'Không được phép xóa tài liệu của phiếu này'}, status=403)
 
             doc.delete()
             return JsonResponse({'message': 'Đã xóa'})
@@ -708,7 +728,7 @@ def update_examination_consult(request, pk):
             if not accessible_examinations_for(user).filter(pk=consult.examination_id).exists():
                 return examination_not_found_response()
 
-            if user.role_code != 'admin' and user.facility_id != consult.examination.facility_id and consult.doctor_id != user.id:
+            if user.role_code != 'admin' and consult.doctor_id != user.id:
                 return JsonResponse({'error': 'Không được phép sửa kết quả của bác sĩ khác'}, status=403)
 
             consult.result = request.POST.get('result', '')
