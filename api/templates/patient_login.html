@@ -61,7 +61,7 @@
                 </div>
             {% endif %}
 
-            <form method="post">
+            <form method="post" action="{% url 'patient_login' %}">
                 {% csrf_token %}
 
                 <!-- Username -->
