@@ -746,7 +746,7 @@ def update_examination_consult(request, pk):
 
 @login_required
 def dashboard(request):
-    if request.user.role_code in ('admin', 'doctor'):
+    if request.user.role_code in ('admin', 'doctor', 'KTV'):
         return render(request, 'dashboard_home.html', {'tab': 'home'})
     elif request.user.role_code == 'patient':
         return redirect('patient_dashboard')
