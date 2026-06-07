@@ -615,7 +615,10 @@ def update_examination_service(request, pk):
             svc = ExaminationService.objects.select_related('examination').get(pk=pk)
             if not accessible_examinations_for(request.user).filter(pk=svc.examination_id).exists():
                 return examination_not_found_response()
-            if not can_edit_examination_results(request.user, svc.examination):
+            if (
+                not can_edit_examination_results(request.user, svc.examination)
+                and svc.assigned_doctor_id != request.user.id
+            ):
                 return JsonResponse({'error': 'Không được phép cập nhật dịch vụ khám của phiếu này'}, status=403)
 
             svc.assigned_doctor_id = request.POST.get('assigned_doctor_id') or None
