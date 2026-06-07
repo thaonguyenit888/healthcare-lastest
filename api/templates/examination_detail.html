@@ -137,8 +137,11 @@
             {% elif svc.status == 'completed' %}
                 <span class="badge-role" style="background:#dcfce7; color:#16a34a;">Hoàn thành</span>
             {% endif %}
-            {% if can_edit_results %}
-            <button class="btn-action btn-action-edit" onclick="toggleServiceEdit({{ svc.id }})">Cập nhật</button>
+            {% if can_edit_results or svc.assigned_doctor_id == request.user.id %}
+                <button class="btn-action btn-action-edit"
+                        onclick="toggleServiceEdit({{ svc.id }})">
+                    Cập nhật
+                </button>
             {% endif %}
         </div>
     </div>
@@ -167,7 +170,7 @@
     </div>
 
     <!-- Edit form (hidden) -->
-    {% if can_edit_results %}
+    {% if can_edit_results or svc.assigned_doctor_id == request.user.id %}
     <div id="svcEdit_{{ svc.id }}" style="display:none;">
         <div class="row mb-2 g-2">
             <div class="col-md-3">
@@ -333,6 +336,7 @@ function deleteOverallDoc(docId) {
 function toggleServiceEdit(svcId) {
     const display = document.getElementById('svcDisplay_' + svcId);
     const form = document.getElementById('svcEdit_' + svcId);
+
     if (form.style.display === 'none') {
         form.style.display = 'block';
         display.style.display = 'none';
