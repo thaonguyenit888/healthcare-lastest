@@ -33,7 +33,7 @@ def accessible_examinations_for(user, queryset=None):
     if getattr(user, 'role_code', None) == 'admin':
         return queryset
 
-    if getattr(user, 'role_code', None) == 'doctor':
+    if getattr(user, 'role_code', None) in ['doctor', 'KTV']:
         access_filter = Q(consults__doctor=user)
         if user.facility_id:
             access_filter |= Q(facility_id=user.facility_id)
@@ -64,7 +64,7 @@ def pending_consult_filter_for(user):
 def can_edit_examination_results(user, examination):
     if getattr(user, 'role_code', None) == 'admin':
         return True
-    return getattr(user, 'role_code', None) == 'doctor' and examination.doctor_id == user.id
+    return getattr(user, 'role_code', None) in ['doctor', 'KTV'] and examination.doctor_id == user.id
 
 
 @admin_required
@@ -323,6 +323,17 @@ def examination_list(request):
             has_pending_consult=Exists(pending_consult_filter_for(request.user))
         )
 
+    if request.user.role_code == 'KTV':
+        examinations = MedicalExamination.objects.filter(
+            examination_services__assigned_doctor_id=request.user.id
+        ).select_related(
+            'patient', 'facility', 'doctor'
+        ).prefetch_related(
+            'examination_services__service'
+        ).annotate(
+            total_price=Sum('examination_services__price')
+        ).distinct().order_by('-examination_date')
+
     patients = Patient.objects.all()
     facilities = MedicalFacility.objects.prefetch_related('services').filter(status='active')
     if request.user.role_code == 'doctor':
@@ -359,7 +370,7 @@ def examination_detail(request, pk):
     overall_docs = ExaminationDocument.objects.filter(examination=exam)
     consults = ExaminationConsult.objects.filter(examination=exam).select_related('doctor')
     has_pending_consult = (
-        request.user.role_code == 'doctor'
+        request.user.role_code in ['doctor', 'KTV']
         and consults.filter(doctor=request.user).filter(Q(result__isnull=True) | Q(result='')).exists()
     )
     can_edit_results = can_edit_examination_results(request.user, exam)
