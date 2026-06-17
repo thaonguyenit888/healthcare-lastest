@@ -374,7 +374,7 @@ def examination_detail(request, pk):
         and consults.filter(doctor=request.user).filter(Q(result__isnull=True) | Q(result='')).exists()
     )
     can_edit_results = can_edit_examination_results(request.user, exam)
-    doctors = User.objects.filter(role__code='doctor')
+    doctors = User.objects.filter(role__code__in=['doctor', 'KTV'], facility_id=exam.facility_id).distinct()
     return render(request, 'examination_detail.html', {
         'examination': exam,
         'services': services,
