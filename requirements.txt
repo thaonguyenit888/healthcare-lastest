@@ -1,3 +1,6 @@
 django
 gunicorn
 psycopg2-binary
+cloudinary
+django-cloudinary-storage
+python-dotenv
